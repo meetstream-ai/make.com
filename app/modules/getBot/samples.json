@@ -1,0 +1,7 @@
+{
+  "bot_id": "bot-example",
+  "status": "Stopped",
+  "platform": "GoogleMeet",
+  "transcript_id": "transcript-example",
+  "details": {}
+}

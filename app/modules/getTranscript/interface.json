@@ -1,0 +1,113 @@
+[
+  {
+    "name": "transcript_id",
+    "label": "Transcript ID",
+    "type": "text"
+  },
+  {
+    "name": "text",
+    "label": "Transcript Text",
+    "type": "text"
+  },
+  {
+    "name": "text_incomplete",
+    "label": "Text Contains Unsupported Word Values",
+    "type": "boolean"
+  },
+  {
+    "name": "segments",
+    "label": "Segments / Participant Groups",
+    "type": "array",
+    "spec": [
+      {
+        "name": "speaker",
+        "label": "Speaker",
+        "type": "text"
+      },
+      {
+        "name": "transcript",
+        "label": "Transcript",
+        "type": "text"
+      },
+      {
+        "name": "start_time",
+        "label": "Start Time",
+        "type": "number"
+      },
+      {
+        "name": "end_time",
+        "label": "End Time",
+        "type": "number"
+      },
+      {
+        "name": "participant",
+        "label": "Participant",
+        "type": "collection",
+        "spec": [
+          {
+            "name": "id",
+            "label": "ID",
+            "type": "integer"
+          },
+          {
+            "name": "name",
+            "label": "Name",
+            "type": "text"
+          },
+          {
+            "name": "platform",
+            "label": "Platform",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "words",
+        "label": "Words",
+        "type": "array",
+        "spec": [
+          {
+            "name": "text",
+            "label": "Text",
+            "type": "text"
+          },
+          {
+            "name": "word",
+            "label": "Word",
+            "type": "text"
+          },
+          {
+            "name": "punctuated_word",
+            "label": "Punctuated Word",
+            "type": "text"
+          },
+          {
+            "name": "start_timestamp",
+            "label": "Start Timestamp",
+            "type": "any"
+          },
+          {
+            "name": "end_timestamp",
+            "label": "End Timestamp",
+            "type": "any"
+          }
+        ]
+      },
+      {
+        "name": "language_code",
+        "label": "Language Code",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "name": "raw_json",
+    "label": "Full Response JSON",
+    "type": "text"
+  },
+  {
+    "name": "raw",
+    "label": "Raw Provider Response",
+    "type": "boolean"
+  }
+]

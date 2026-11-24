@@ -1,0 +1,260 @@
+{
+  "name": "Retrieve a stored Make AI summary (no generation)",
+  "flow": [
+    {
+      "id": 1,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "enabled",
+            "value": "false"
+          },
+          {
+            "name": "botId",
+            "value": "REPLACE_WITH_BOT_ID"
+          },
+          {
+            "name": "transcriptId",
+            "value": "REPLACE_WITH_TRANSCRIPT_ID"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Setup — enable and enter the saved bot/transcript IDs"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "datastore:GetRecord",
+      "version": 1,
+      "parameters": {
+        "datastore": "SUMMARY_DATA_STORE_ID"
+      },
+      "mapper": {
+        "key": "summary:small-v1:{{sha256(1.botId)}}:{{sha256(1.transcriptId)}}",
+        "returnWrapped": false
+      },
+      "filter": {
+        "name": "Enable on test connections after setup",
+        "conditions": [
+          [
+            {
+              "a": "{{1.enabled}}",
+              "o": "text:equal",
+              "b": "true"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Retrieve by the exact stored source identity; no AI request"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Validate stored summary provenance before returning"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "util:SetVariables",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "variables": [
+                  {
+                    "name": "bot_id",
+                    "value": "{{2.bot_id}}"
+                  },
+                  {
+                    "name": "transcript_id",
+                    "value": "{{2.transcript_id}}"
+                  },
+                  {
+                    "name": "summary",
+                    "value": "{{2.summary}}"
+                  },
+                  {
+                    "name": "summary_source",
+                    "value": "{{2.summary_source}}"
+                  },
+                  {
+                    "name": "summary_policy",
+                    "value": "{{2.summary_policy}}"
+                  },
+                  {
+                    "name": "generated_at",
+                    "value": "{{2.generated_at}}"
+                  }
+                ],
+                "scope": "roundtrip"
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 0,
+                  "name": "Return the stored Make-generated summary"
+                }
+              },
+              "filter": {
+                "name": "Verified stored summary",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{2.bot_id}}",
+                      "o": "text:equal",
+                      "b": "{{1.botId}}"
+                    },
+                    {
+                      "a": "{{2.transcript_id}}",
+                      "o": "text:equal",
+                      "b": "{{1.transcriptId}}"
+                    },
+                    {
+                      "a": "{{2.summary_source}}",
+                      "o": "text:equal",
+                      "b": "make_ai_toolkit"
+                    },
+                    {
+                      "a": "{{2.summary_policy}}",
+                      "o": "text:equal",
+                      "b": "small-v1"
+                    },
+                    {
+                      "a": "{{length(trim(ifempty(2.summary; \"\")))}}",
+                      "o": "number:greater",
+                      "b": 0
+                    },
+                    {
+                      "a": "{{length(2.summary)}}",
+                      "o": "number:lessorequal",
+                      "b": 20000
+                    },
+                    {
+                      "a": "{{2.generated_at}}",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Stored summary is empty, oversized or has incompatible provenance. Inspect this exact summary record before retrying; no AI regeneration or overwrite was performed."
+              },
+              "filter": {
+                "name": "Invalid stored summary",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{2.bot_id}}",
+                      "o": "text:notequal",
+                      "b": "{{1.botId}}"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{2.transcript_id}}",
+                      "o": "text:notequal",
+                      "b": "{{1.transcriptId}}"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{2.summary_source}}",
+                      "o": "text:notequal",
+                      "b": "make_ai_toolkit"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{2.summary_policy}}",
+                      "o": "text:notequal",
+                      "b": "small-v1"
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{length(trim(ifempty(2.summary; \"\")))}}",
+                      "o": "number:lessorequal",
+                      "b": 0
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{length(2.summary)}}",
+                      "o": "number:greater",
+                      "b": 20000
+                    }
+                  ],
+                  [
+                    {
+                      "a": "{{2.generated_at}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 0,
+                  "name": "Stored summary is empty, oversized or has incompatible provenance. Inspect this exact summary record before retrying; no AI regeneration or overwrite was performed."
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

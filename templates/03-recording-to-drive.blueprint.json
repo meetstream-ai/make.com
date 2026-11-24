@@ -1,0 +1,400 @@
+{
+  "name": "Recording ready → customer Google Drive",
+  "flow": [
+    {
+      "id": 1,
+      "module": "app#meetstream:watchMeetingEvents",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Verified recording events — configure relay first"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "folderId",
+            "value": "REPLACE_WITH_TEST_FOLDER_ID"
+          },
+          {
+            "name": "fileName",
+            "value": "meetstream-{{1.bot_id}}.mp4"
+          },
+          {
+            "name": "maxSizeMb",
+            "value": "5"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "filter": {
+        "name": "Enable after synthetic testing",
+        "conditions": [
+          [
+            {
+              "a": "false",
+              "o": "text:equal",
+              "b": "true"
+            },
+            {
+              "a": "{{1.bot_event}}",
+              "o": "text:equal",
+              "b": "video.processed"
+            },
+            {
+              "a": "{{1.payload.video_status}}",
+              "o": "text:equal",
+              "b": "Success"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Setup — choose folder and Make-plan file limit"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "google-drive:makeApiCall",
+      "version": 4,
+      "parameters": {},
+      "mapper": {
+        "url": "/drive/v3/files",
+        "method": "GET",
+        "qs": [
+          {
+            "key": "q",
+            "value": "name = '{{replace(replace(2.fileName; \"/\\\\/g\"; decodeURL(\"%5C%5C\")); \"/'/g\"; decodeURL(\"%5C%27\"))}}' and '{{replace(replace(2.folderId; \"/\\\\/g\"; decodeURL(\"%5C%5C\")); \"/'/g\"; decodeURL(\"%5C%27\"))}}' in parents and trashed = false"
+          },
+          {
+            "key": "fields",
+            "value": "files(id,name),nextPageToken"
+          },
+          {
+            "key": "pageSize",
+            "value": "100"
+          }
+        ],
+        "headers": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Look up deterministic recording filename"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Do not silently drop storage lookup overflow"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 23,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Drive lookup response is missing the files array. Inspect the response before replaying this event."
+              },
+              "filter": {
+                "name": "Missing lookup results",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{3.body.files}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 6600,
+                  "y": 0,
+                  "name": "Drive lookup response is missing the files array. Inspect the response before replaying this event."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 20,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Drive lookup overflow. Inspect the destination folder before replaying this event."
+              },
+              "filter": {
+                "name": "Incomplete results",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{3.body.nextPageToken}}",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 5700,
+                  "y": 0,
+                  "name": "Drive lookup overflow. Inspect the destination folder before replaying this event."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "app#meetstream:getRecording",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "botId": "{{1.bot_id}}"
+              },
+              "filter": {
+                "name": "No existing archive and complete result",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{3.body.files}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{length(3.body.files)}}",
+                      "o": "number:equal",
+                      "b": 0
+                    },
+                    {
+                      "a": "{{3.body.nextPageToken}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 0,
+                  "name": "Fetch fresh video URL immediately before download"
+                }
+              }
+            },
+            {
+              "id": 6,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "parameters": {},
+              "mapper": {},
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0,
+                  "name": "Verify size instead of silently skipping the file"
+                }
+              },
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 21,
+                      "module": "builtin:ThrowError",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "message": "Recording size must be a positive number. Verify metadata and the Make plan limit before downloading."
+                      },
+                      "filter": {
+                        "name": "Invalid size",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "notexist"
+                            }
+                          ],
+                          [
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "text:notpattern",
+                              "b": "^([0-9]+([.][0-9]+)?|[.][0-9]+)$"
+                            }
+                          ],
+                          [
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "number:lessorequal",
+                              "b": 0
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 6000,
+                          "y": 0,
+                          "name": "Recording size must be a positive number. Verify metadata and the Make plan limit before downloading."
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 22,
+                      "module": "builtin:ThrowError",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "message": "Recording exceeds the configured Make file limit. Transfer it through customer storage tooling or raise the verified limit."
+                      },
+                      "filter": {
+                        "name": "Oversized recording",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "number:greater",
+                              "b": "{{2.maxSizeMb}}"
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 6300,
+                          "y": 0,
+                          "name": "Recording exceeds the configured Make file limit. Transfer it through customer storage tooling or raise the verified limit."
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 7,
+                      "module": "http:ActionGetFile",
+                      "version": 3,
+                      "parameters": {
+                        "handleErrors": true
+                      },
+                      "mapper": {
+                        "url": "{{5.video_url}}",
+                        "method": "get",
+                        "serializeUrl": false,
+                        "shareCookies": false
+                      },
+                      "filter": {
+                        "name": "Known size within limit",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "text:pattern",
+                              "b": "^([0-9]+([.][0-9]+)?|[.][0-9]+)$"
+                            },
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "number:greater",
+                              "b": 0
+                            },
+                            {
+                              "a": "{{5.video_info.size_mb}}",
+                              "o": "number:lessorequal",
+                              "b": "{{2.maxSizeMb}}"
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 1800,
+                          "y": 0,
+                          "name": "Download immediately without MeetStream authorization"
+                        }
+                      }
+                    },
+                    {
+                      "id": 8,
+                      "module": "google-drive:uploadAFile",
+                      "version": 4,
+                      "parameters": {},
+                      "mapper": {
+                        "data": "{{7.data}}",
+                        "filename": "{{2.fileName}}",
+                        "select": "map",
+                        "folderId": "{{2.folderId}}",
+                        "destination": "drive",
+                        "convert": false
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 0,
+                          "name": "Upload once; replay the full event after uncertain failure"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

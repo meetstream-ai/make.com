@@ -1,0 +1,48 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/summary",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "valid": {
+      "condition": "{{statusCode == 200 && body != null && createJSON(body) != '{}' && createJSON(body) != '[]' && replace(createJSON(body), '/^\"(?:\\\\[nrt]|\\s)*\"$/', '') != ''}}",
+      "type": "DataError",
+      "message": "No completed summary was returned. HTTP 202 means processing; retry later with a bounded policy. An empty 200 response is not a completed summary."
+    },
+    "error": {
+      "400": {
+        "type": "DataError",
+        "message": "[400] Check the meeting URL, options, and scheduled join time. Scheduled times must be in the future."
+      },
+      "401": {
+        "type": "InvalidAccessTokenError",
+        "message": "[401] Update the API key in your MeetStream connection."
+      },
+      "403": {
+        "type": "DataError",
+        "message": "[403] Check your MeetStream API key, account permissions, credits, and resource ownership. This can be a resource or credit restriction even when the connection is valid."
+      },
+      "404": {
+        "type": "DataError",
+        "message": "[404] The summary endpoint or this bot's summary is unavailable. Verify the bot with Get a Bot and confirm summary API support with MeetStream. Waiting or retranscribing is not guaranteed to resolve this response."
+      },
+      "409": {
+        "type": "DataError",
+        "message": "[409] The deduplication key belongs to a different meeting, or transcription was not enabled. Check the bot configuration."
+      },
+      "429": {
+        "type": "RateLimitError",
+        "message": "[429] MeetStream is throttling requests or has no available signed-in login. Retry-After: {{ifempty(get(headers, 'retry-after'), 'not supplied')}}. Use a bounded retry policy and check signed-in bot capacity."
+      },
+      "507": {
+        "type": "DataError",
+        "message": "[507] MeetStream returned an Idempotency-Key replay. Do not retry it. Use Create a Bot with a Deduplication Key for native Make replay handling."
+      },
+      "message": "[{{statusCode}}] MeetStream could not complete this request. Check the module inputs and service status."
+    },
+    "output": {
+      "bot_id": "{{parameters.botId}}",
+      "summary": "{{body}}",
+      "summary_json": "{{createJSON(body)}}"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "name": "delivery_id",
+    "label": "Delivery ID",
+    "type": "text"
+  },
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "bot_event",
+    "label": "Bot Event",
+    "type": "text"
+  },
+  {
+    "name": "event",
+    "label": "Legacy Event",
+    "type": "text"
+  },
+  {
+    "name": "bot_status",
+    "label": "Bot Status",
+    "type": "text"
+  },
+  {
+    "name": "status_code",
+    "label": "Status Code",
+    "type": "integer"
+  },
+  {
+    "name": "message",
+    "label": "Message",
+    "type": "text"
+  },
+  {
+    "name": "timestamp",
+    "label": "Event Timestamp",
+    "type": "date"
+  },
+  {
+    "name": "transcript_id",
+    "label": "Transcript ID",
+    "type": "text"
+  },
+  {
+    "name": "custom_attributes",
+    "label": "Custom Attributes",
+    "type": "collection"
+  },
+  {
+    "name": "payload",
+    "label": "Event Payload",
+    "type": "collection"
+  }
+]

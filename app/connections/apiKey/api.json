@@ -1,0 +1,17 @@
+{
+  "url": "https://api.meetstream.ai/api/v1/bots",
+  "method": "GET",
+  "headers": { "Authorization": "Token {{parameters.apiKey}}", "Accept": "application/json" },
+  "followRedirects": false,
+  "followAllRedirects": false,
+  "response": {
+    "valid": "{{statusCode >= 200 && statusCode < 300}}",
+    "data": { "apiKey": "{{parameters.apiKey}}" },
+    "error": {
+      "message": "[{{statusCode}}] Could not verify this MeetStream connection. Check your API key and try again.",
+      "401": { "type": "InvalidAccessTokenError", "message": "[401] The MeetStream API key is invalid. Get a key at app.meetstream.ai/api-key." },
+      "403": { "type": "InvalidAccessTokenError", "message": "[403] MeetStream rejected this key. Check the key and workspace access." }
+    }
+  },
+  "log": { "sanitize": ["request.headers.authorization", "response.body"] }
+}

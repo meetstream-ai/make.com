@@ -1,0 +1,8 @@
+{
+  "properties": {
+    "meetstream_transcript_id": "synthetic-transcript",
+    "meetstream_bot_id": "synthetic-bot",
+    "meetstream_meeting_started_at": "2026-10-14T10:00:00.000Z",
+    "meetstream_transcript": "Synthetic speech with \"quotes\", newlines\nand Unicode नमस्ते 😀."
+  }
+}

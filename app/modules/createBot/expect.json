@@ -1,0 +1,258 @@
+[
+  {
+    "name": "meetingLink",
+    "label": "Meeting URL",
+    "type": "url",
+    "required": true,
+    "validate": {
+      "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+    }
+  },
+  {
+    "name": "botName",
+    "label": "Bot Name",
+    "type": "text",
+    "required": true,
+    "default": "MeetStream Notetaker",
+    "validate": {
+      "min": 1,
+      "max": 256
+    }
+  },
+  {
+    "name": "deduplicationKey",
+    "label": "Deduplication Key",
+    "type": "text",
+    "required": true,
+    "validate": {
+      "min": 1,
+      "max": 2000,
+      "pattern": "^[\\x20-\\x7E]+$(?![\\s\\S])"
+    },
+    "help": "Use one stable key per logical meeting, such as a calendar ID plus event occurrence ID. Reuse it on retries. Serialize creation: simultaneous first calls can create duplicates."
+  },
+  {
+    "name": "joinAt",
+    "label": "Join At",
+    "type": "date"
+  },
+  {
+    "name": "videoRequired",
+    "label": "Record Video",
+    "type": "boolean",
+    "required": true,
+    "default": false
+  },
+  {
+    "name": "transcriptionMode",
+    "label": "Transcription",
+    "type": "select",
+    "required": true,
+    "default": "none",
+    "options": [
+      {
+        "label": "None",
+        "value": "none"
+      },
+      {
+        "label": "Post-call",
+        "value": "post",
+        "nested": [
+          {
+            "name": "postCallProvider",
+            "label": "Provider",
+            "type": "select",
+            "required": true,
+            "default": "meetstream",
+            "options": [
+              {
+                "label": "meetstream",
+                "value": "meetstream"
+              },
+              {
+                "label": "deepgram",
+                "value": "deepgram"
+              },
+              {
+                "label": "assemblyai",
+                "value": "assemblyai"
+              },
+              {
+                "label": "jigsawstack",
+                "value": "jigsawstack"
+              },
+              {
+                "label": "sarvam",
+                "value": "sarvam"
+              },
+              {
+                "label": "meeting_captions",
+                "value": "meeting_captions"
+              }
+            ]
+          },
+          {
+            "name": "transcriptionLanguage",
+            "label": "Language",
+            "type": "text",
+            "help": "Optional provider language code. Leave blank for the provider default."
+          },
+          {
+            "name": "providerOptions",
+            "label": "Provider Options (JSON)",
+            "type": "text",
+            "default": "{}",
+            "multiline": true,
+            "validate": {
+              "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+            },
+            "advanced": true,
+            "help": "Overrides the provider defaults. Enter a JSON object."
+          }
+        ]
+      },
+      {
+        "label": "Post-call (n8n name)",
+        "value": "postCall",
+        "nested": [
+          {
+            "name": "postCallProvider",
+            "label": "Provider",
+            "type": "select",
+            "required": true,
+            "default": "meetstream",
+            "options": [
+              {
+                "label": "meetstream",
+                "value": "meetstream"
+              },
+              {
+                "label": "deepgram",
+                "value": "deepgram"
+              },
+              {
+                "label": "assemblyai",
+                "value": "assemblyai"
+              },
+              {
+                "label": "jigsawstack",
+                "value": "jigsawstack"
+              },
+              {
+                "label": "sarvam",
+                "value": "sarvam"
+              },
+              {
+                "label": "meeting_captions",
+                "value": "meeting_captions"
+              }
+            ]
+          },
+          {
+            "name": "transcriptionLanguage",
+            "label": "Language",
+            "type": "text",
+            "help": "Optional provider language code. Leave blank for the provider default."
+          },
+          {
+            "name": "providerOptions",
+            "label": "Provider Options (JSON)",
+            "type": "text",
+            "default": "{}",
+            "multiline": true,
+            "validate": {
+              "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+            },
+            "advanced": true,
+            "help": "Overrides the provider defaults. Enter a JSON object."
+          }
+        ]
+      },
+      {
+        "label": "Live",
+        "value": "live",
+        "nested": [
+          {
+            "name": "liveProvider",
+            "label": "Provider",
+            "type": "select",
+            "required": true,
+            "default": "deepgram_streaming",
+            "options": [
+              {
+                "label": "deepgram_streaming",
+                "value": "deepgram_streaming"
+              },
+              {
+                "label": "assemblyai_streaming",
+                "value": "assemblyai_streaming"
+              }
+            ]
+          },
+          {
+            "name": "transcriptionLanguage",
+            "label": "Language",
+            "type": "text",
+            "help": "Optional provider language code. Leave blank for the provider default."
+          },
+          {
+            "name": "providerOptions",
+            "label": "Provider Options (JSON)",
+            "type": "text",
+            "default": "{}",
+            "multiline": true,
+            "validate": {
+              "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+            },
+            "advanced": true,
+            "help": "Overrides the provider defaults. Enter a JSON object."
+          },
+          {
+            "name": "liveWebhookUrl",
+            "label": "Live Transcript Webhook URL",
+            "type": "url",
+            "required": true,
+            "validate": {
+              "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+            },
+            "help": "Streaming transcript chunks use a separate channel from meeting events."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "recordingConfig",
+    "label": "Recording Configuration Override",
+    "type": "text",
+    "default": "{}",
+    "multiline": true,
+    "validate": {
+      "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+    },
+    "advanced": true,
+    "help": "Optional complete recording_config for existing advanced scenarios. A nonempty object overrides the provider controls. Do not enable a live provider in post-call mode."
+  },
+  {
+    "name": "callbackUrl",
+    "label": "Lifecycle Callback URL",
+    "type": "url",
+    "advanced": true,
+    "validate": {
+      "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+    },
+    "help": "Per-bot callbacks are unsigned. Use a signed workspace webhook through the verification relay for production events."
+  },
+  {
+    "name": "customAttributes",
+    "label": "Custom Attributes",
+    "type": "text",
+    "default": "{}",
+    "multiline": true,
+    "validate": {
+      "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+    },
+    "advanced": true,
+    "help": "A JSON object echoed in events. Include destination keys, never credentials."
+  }
+]

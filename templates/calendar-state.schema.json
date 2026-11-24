@@ -1,0 +1,35 @@
+{
+  "name": "MeetStream calendar occurrence state",
+  "spec": [
+    {
+      "name": "bot_id",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "calendar_id",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "event_id",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "start_at",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "meeting_url",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "status",
+      "type": "text",
+      "required": true
+    }
+  ]
+}

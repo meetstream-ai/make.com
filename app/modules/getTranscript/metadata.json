@@ -1,0 +1,7 @@
+{
+  "name": "getTranscript",
+  "typeId": 4,
+  "label": "Get a Transcript",
+  "description": "Retrieves transcript text, segments, and metadata by transcript ID.",
+  "connection": "apiKey"
+}

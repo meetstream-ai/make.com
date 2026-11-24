@@ -1,0 +1,94 @@
+{
+  "repository": "https://github.com/meetstream-ai/n8n-plugin",
+  "commit": "5319cd482c3cb17b836c0dd72d307117b1919729",
+  "packageVersion": "0.1.0",
+  "checkedAt": "2026-11-24",
+  "sourceFiles": [
+    "nodes/MeetStream/MeetStream.node.ts",
+    "credentials/MeetStreamApi.credentials.ts",
+    "test/execute-node.test.mjs",
+    "test/template-runtime.test.mjs",
+    "templates/02-transcript-to-crm.json"
+  ],
+  "baseUrl": "https://api.meetstream.ai/api/v1",
+  "defaults": {
+    "botName": "MeetStream Notetaker",
+    "videoRequired": false,
+    "transcriptionMode": "none"
+  },
+  "endpoints": {
+    "createBot": "create_bot",
+    "getBot": "detail",
+    "getTranscriptions": "transcriptions",
+    "getRecording": "get_video",
+    "removeBot": "remove_bot"
+  },
+  "providers": {
+    "meetstream": {
+      "language": "auto",
+      "translate": false
+    },
+    "deepgram": {
+      "model": "nova-3",
+      "language": "en",
+      "punctuate": true,
+      "smart_format": true,
+      "diarize": true,
+      "paragraphs": true,
+      "numerals": true,
+      "filler_words": false,
+      "utterances": true,
+      "utt_split": 0.8,
+      "detect_language": false
+    },
+    "assemblyai": {
+      "speech_models": [
+        "universal-2"
+      ],
+      "language_code": "en_us",
+      "speaker_labels": true,
+      "punctuate": true,
+      "format_text": true,
+      "filter_profanity": false,
+      "redact_pii": false,
+      "auto_chapters": false,
+      "entity_detection": false
+    },
+    "jigsawstack": {
+      "language": "auto",
+      "translate": false,
+      "by_speaker": true
+    },
+    "sarvam": {
+      "model": "saaras:v3",
+      "language_code": "en-IN",
+      "mode": "transcribe",
+      "with_diarization": true
+    },
+    "meeting_captions": {},
+    "deepgram_streaming": {
+      "transcription_mode": "sentence",
+      "model": "nova-2",
+      "language": "en",
+      "punctuate": true,
+      "smart_format": true,
+      "endpointing": 300,
+      "vad_events": true,
+      "utterance_end_ms": 1000,
+      "encoding": "linear16",
+      "channels": 1
+    },
+    "assemblyai_streaming": {
+      "transcription_mode": "raw",
+      "sample_rate": 48000,
+      "speech_model": "universal-streaming-english",
+      "format_turns": false,
+      "encoding": "pcm_s16le",
+      "vad_threshold": "0.4",
+      "end_of_turn_confidence_threshold": "0.4",
+      "inactivity_timeout": 300,
+      "min_end_of_turn_silence_when_confident": "400",
+      "max_turn_silence": "1280"
+    }
+  }
+}

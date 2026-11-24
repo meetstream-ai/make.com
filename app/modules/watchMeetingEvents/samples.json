@@ -1,0 +1,12 @@
+{
+  "delivery_id": "delivery-example",
+  "bot_id": "bot-example",
+  "bot_event": "transcription.processed",
+  "event": "transcription.processed",
+  "status_code": 200,
+  "payload": {
+    "bot_id": "bot-example",
+    "bot_event": "transcription.processed",
+    "transcript_status": "Success"
+  }
+}

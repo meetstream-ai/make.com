@@ -1,0 +1,37 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "transcript_id",
+    "label": "Transcript ID",
+    "type": "text"
+  },
+  {
+    "name": "provider",
+    "label": "Provider",
+    "type": "text"
+  },
+  {
+    "name": "status",
+    "label": "Status",
+    "type": "text"
+  },
+  {
+    "name": "created_at",
+    "label": "Created At",
+    "type": "date"
+  },
+  {
+    "name": "config",
+    "label": "Configuration",
+    "type": "collection"
+  },
+  {
+    "name": "download_urls",
+    "label": "Download URLs",
+    "type": "collection"
+  }
+]

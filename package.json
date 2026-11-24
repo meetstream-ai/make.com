@@ -1,0 +1,25 @@
+{
+  "name": "meetstream-make-app",
+  "version": "0.1.3",
+  "private": true,
+  "type": "module",
+  "description": "MeetStream Custom App definitions and verified webhook relay for Make",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/validate.mjs",
+    "test": "node --test test/*.test.mjs",
+    "verify": "npm run build && npm run check && npm test",
+    "templates:bind": "node scripts/bind-templates.mjs",
+    "deploy:plan": "node scripts/deploy.mjs",
+    "deploy": "node scripts/deploy.mjs --apply",
+    "test:live": "node scripts/live-test.mjs",
+    "test:make-webhook": "node scripts/test-make-webhook.mjs",
+    "relay": "node relay/server.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0"
+  }
+}

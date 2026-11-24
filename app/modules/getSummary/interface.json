@@ -1,0 +1,17 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "summary",
+    "label": "Summary",
+    "type": "any"
+  },
+  {
+    "name": "summary_json",
+    "label": "Summary JSON",
+    "type": "text"
+  }
+]

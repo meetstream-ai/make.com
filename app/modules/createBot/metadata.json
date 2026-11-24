@@ -1,0 +1,7 @@
+{
+  "name": "createBot",
+  "typeId": 4,
+  "label": "Create a Bot",
+  "description": "Creates or schedules a meeting bot with a stable deduplication key.",
+  "connection": "apiKey"
+}

@@ -1,0 +1,47 @@
+name: Verify Make app source
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['22.13.0', '24.x']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm ls --all
+      - run: npm run verify
+      - name: Verify committed generated files are current
+        run: |
+          git diff --exit-code -- app dist templates
+          test -z "$(git ls-files --others --exclude-standard -- app dist templates)"
+      - run: npm audit
+      - name: Package verified Make source
+        if: github.event_name == 'workflow_dispatch' && matrix.node == '24.x'
+        run: |
+          git archive --format=tar.gz --prefix=meetstream-make/ \
+            --output=meetstream-make.tar.gz HEAD -- \
+            .dockerignore .gitignore app assets dist docs reference relay scripts templates test \
+            README.md quickstart.md CHANGELOG.md package.json package-lock.json
+      - name: Save Make source archive
+        if: github.event_name == 'workflow_dispatch' && matrix.node == '24.x'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: meetstream-make-${{ github.sha }}
+          path: meetstream-make.tar.gz
+          if-no-files-found: error

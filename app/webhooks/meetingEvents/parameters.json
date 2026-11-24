@@ -1,0 +1,13 @@
+[
+  {
+    "name": "relaySecret",
+    "label": "Relay Signing Key",
+    "type": "password",
+    "required": true,
+    "validate": {
+      "min": 32,
+      "max": 256
+    },
+    "help": "Store the shared relay signing key here, never in a scenario mapper. This is distinct from the MeetStream workspace signing secret."
+  }
+]

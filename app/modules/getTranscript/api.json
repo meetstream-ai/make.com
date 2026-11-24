@@ -1,0 +1,23 @@
+{
+  "url": "/api/v1/transcript/{{encodeURL(parameters.transcriptId)}}/get_transcript",
+  "encodeUrl": false,
+  "method": "GET",
+  "qs": {
+    "raw": "{{if(parameters.raw, true, null)}}"
+  },
+  "response": {
+    "iterate": "{{remove(if(parameters.raw, parseJSON('[]'), body), null)}}",
+    "output": {
+      "text": "{{if(substring(createJSON(get(item, 'transcript')), 0, 1) == '\"' && trim(get(item, 'transcript')), get(item, 'transcript'), if(replace(createJSON(remove(map(remove(get(item, 'words'), null), 'text'), null)), '/^\\[(?:\"(?:[^\"\\\\]|\\\\.)*\"(?:,\"(?:[^\"\\\\]|\\\\.)*\")*)?\\]$/', '') == '', join(remove(map(remove(get(item, 'words'), null), 'text'), null), ' '), ''))}}",
+      "incomplete": "{{!(substring(createJSON(get(item, 'transcript')), 0, 1) == '\"' && trim(get(item, 'transcript'))) && !(replace(createJSON(remove(map(remove(get(item, 'words'), null), 'text'), null)), '/^\\[(?:\"(?:[^\"\\\\]|\\\\.)*\"(?:,\"(?:[^\"\\\\]|\\\\.)*\")*)?\\]$/', '') == '')}}"
+    },
+    "wrapper": {
+      "transcript_id": "{{parameters.transcriptId}}",
+      "text": "{{if(parameters.raw, '', join(remove(map(output, 'text'), ''), decodeURL('%0A')))}}",
+      "text_incomplete": "{{length(map(output, 'incomplete', 'incomplete', true)) > 0}}",
+      "segments": "{{if(parameters.raw, null, body)}}",
+      "raw_json": "{{createJSON(body)}}",
+      "raw": "{{parameters.raw}}"
+    }
+  }
+}

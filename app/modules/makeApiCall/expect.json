@@ -1,0 +1,88 @@
+[
+  {
+    "name": "url",
+    "label": "URL",
+    "type": "text",
+    "required": true,
+    "default": "/api/v1/bots",
+    "validate": {
+      "pattern": "^/api/v[0-9]+(?:/[A-Za-z0-9_%~-]+)+$(?![\\s\\S])"
+    },
+    "help": "Enter a path relative to https://api.meetstream.ai, for example /api/v1/bots. Put query parameters below. External hosts and redirects are blocked."
+  },
+  {
+    "name": "method",
+    "label": "Method",
+    "type": "select",
+    "required": true,
+    "default": "GET",
+    "options": [
+      {
+        "label": "GET",
+        "value": "GET"
+      },
+      {
+        "label": "POST",
+        "value": "POST"
+      },
+      {
+        "label": "PUT",
+        "value": "PUT"
+      },
+      {
+        "label": "PATCH",
+        "value": "PATCH"
+      },
+      {
+        "label": "DELETE",
+        "value": "DELETE"
+      }
+    ]
+  },
+  {
+    "name": "qs",
+    "label": "Query String",
+    "type": "array",
+    "spec": [
+      {
+        "name": "key",
+        "label": "Key",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "value",
+        "label": "Value",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "name": "headers",
+    "label": "Headers",
+    "type": "array",
+    "spec": [
+      {
+        "name": "key",
+        "label": "Key",
+        "type": "text",
+        "required": true,
+        "validate": {
+          "pattern": "^(?!(?:[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Hh][Oo][Ss][Tt]|[Cc][Oo][Oo][Kk][Ii][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn])$)[A-Za-z0-9-]+$(?![\\s\\S])"
+        }
+      },
+      {
+        "name": "value",
+        "label": "Value",
+        "type": "text"
+      }
+    ]
+  },
+  {
+    "name": "body",
+    "label": "Body",
+    "type": "text",
+    "multiline": true,
+    "help": "Optional JSON request body. You are responsible for the method, path, and body. Writes can change meetings and incur charges. Do not put credentials here."
+  }
+]

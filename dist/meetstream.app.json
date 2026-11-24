@@ -1,0 +1,1461 @@
+{
+  "app": {
+    "name": "meetstream",
+    "label": "MeetStream",
+    "description": "Create meeting bots, retrieve transcripts and recordings, and watch meeting events.",
+    "version": 1,
+    "theme": "#2563EB",
+    "language": "en",
+    "public": false,
+    "global": true
+  },
+  "base": {
+    "baseUrl": "https://api.meetstream.ai",
+    "headers": {
+      "Authorization": "Token {{connection.apiKey}}",
+      "Accept": "application/json"
+    },
+    "followRedirects": false,
+    "followAllRedirects": false,
+    "response": {
+      "valid": "{{statusCode >= 200 && statusCode < 300}}",
+      "error": {
+        "400": {
+          "type": "DataError",
+          "message": "[400] Check the meeting URL, options, and scheduled join time. Scheduled times must be in the future."
+        },
+        "401": {
+          "type": "InvalidAccessTokenError",
+          "message": "[401] Update the API key in your MeetStream connection."
+        },
+        "403": {
+          "type": "DataError",
+          "message": "[403] Check your MeetStream API key, account permissions, credits, and resource ownership. This can be a resource or credit restriction even when the connection is valid."
+        },
+        "404": {
+          "type": "DataError",
+          "message": "[404] The resource was not found or the artifact is not ready. Verify the ID and wait for the corresponding processed event."
+        },
+        "409": {
+          "type": "DataError",
+          "message": "[409] The deduplication key belongs to a different meeting, or transcription was not enabled. Check the bot configuration."
+        },
+        "429": {
+          "type": "RateLimitError",
+          "message": "[429] MeetStream is throttling requests or has no available signed-in login. Retry-After: {{ifempty(get(headers, 'retry-after'), 'not supplied')}}. Use a bounded retry policy and check signed-in bot capacity."
+        },
+        "507": {
+          "type": "DataError",
+          "message": "[507] MeetStream returned an Idempotency-Key replay. Do not retry it. Use Create a Bot with a Deduplication Key for native Make replay handling."
+        },
+        "message": "[{{statusCode}}] MeetStream could not complete this request. Check the module inputs and service status."
+      }
+    },
+    "log": {
+      "sanitize": [
+        "request.headers.authorization",
+        "request.body",
+        "response.body",
+        "response.headers.set-cookie"
+      ]
+    }
+  },
+  "connections": {
+    "apiKey": {
+      "metadata": {
+        "type": "apikey",
+        "label": "MeetStream API Key"
+      },
+      "parameters": [
+        {
+          "name": "apiKey",
+          "type": "password",
+          "label": "API Key",
+          "required": true,
+          "help": "Create an API key at https://app.meetstream.ai/api-key. Paste only the key; MeetStream adds the Token prefix.",
+          "validate": {
+            "min": 1,
+            "max": 4096,
+            "pattern": "^[^\\s\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "https://api.meetstream.ai/api/v1/bots",
+        "method": "GET",
+        "headers": {
+          "Authorization": "Token {{parameters.apiKey}}",
+          "Accept": "application/json"
+        },
+        "followRedirects": false,
+        "followAllRedirects": false,
+        "response": {
+          "valid": "{{statusCode >= 200 && statusCode < 300}}",
+          "data": {
+            "apiKey": "{{parameters.apiKey}}"
+          },
+          "error": {
+            "401": {
+              "type": "InvalidAccessTokenError",
+              "message": "[401] The MeetStream API key is invalid. Get a key at app.meetstream.ai/api-key."
+            },
+            "403": {
+              "type": "InvalidAccessTokenError",
+              "message": "[403] MeetStream rejected this key. Check the key and workspace access."
+            },
+            "message": "[{{statusCode}}] Could not verify this MeetStream connection. Check your API key and try again."
+          }
+        },
+        "log": {
+          "sanitize": [
+            "request.headers.authorization",
+            "response.body"
+          ]
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "meetingEvents": {
+      "metadata": {
+        "type": "dedicated",
+        "label": "MeetStream Verified Meeting Events"
+      },
+      "parameters": [
+        {
+          "name": "relaySecret",
+          "label": "Relay Signing Key",
+          "type": "password",
+          "required": true,
+          "validate": {
+            "min": 32,
+            "max": 256
+          },
+          "help": "Store the shared relay signing key here, never in a scenario mapper. This is distinct from the MeetStream workspace signing secret."
+        }
+      ],
+      "api": {
+        "verification": {
+          "condition": "{{if(method == 'POST' && body.delivery_id && body.payload && body.signature == sha256(body.delivery_id + ':' + body.issued_at + ':' + body.payload, 'hex', parameters.relaySecret) && parseDate(body.issued_at, 'X') >= addSeconds(now, -300) && parseDate(body.issued_at, 'X') <= addSeconds(now, 300), false, true)}}",
+          "respond": {
+            "status": 401,
+            "type": "json",
+            "body": {
+              "received": false
+            }
+          }
+        },
+        "respond": {
+          "status": 202,
+          "type": "json",
+          "body": {
+            "received": true
+          }
+        },
+        "output": {
+          "delivery_id": "{{body.delivery_id}}",
+          "bot_id": "{{toString(get(parseJSON(body.payload), 'bot_id'))}}",
+          "bot_event": "{{ifempty(get(parseJSON(body.payload), 'bot_event'), get(parseJSON(body.payload), 'event'))}}",
+          "event": "{{get(parseJSON(body.payload), 'event')}}",
+          "bot_status": "{{get(parseJSON(body.payload), 'bot_status')}}",
+          "status_code": "{{get(parseJSON(body.payload), 'status_code')}}",
+          "message": "{{get(parseJSON(body.payload), 'message')}}",
+          "timestamp": "{{if(get(parseJSON(body.payload), 'timestamp'), parseDate(get(parseJSON(body.payload), 'timestamp'), 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+          "transcript_id": "{{get(parseJSON(body.payload), 'transcript_id')}}",
+          "custom_attributes": "{{get(parseJSON(body.payload), 'custom_attributes')}}",
+          "payload": "{{parseJSON(body.payload)}}"
+        }
+      }
+    }
+  },
+  "modules": {
+    "createBot": {
+      "metadata": {
+        "name": "createBot",
+        "typeId": 4,
+        "label": "Create a Bot",
+        "description": "Creates or schedules a meeting bot with a stable deduplication key.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "meetingLink",
+          "label": "Meeting URL",
+          "type": "url",
+          "required": true,
+          "validate": {
+            "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+          }
+        },
+        {
+          "name": "botName",
+          "label": "Bot Name",
+          "type": "text",
+          "required": true,
+          "default": "MeetStream Notetaker",
+          "validate": {
+            "min": 1,
+            "max": 256
+          }
+        },
+        {
+          "name": "deduplicationKey",
+          "label": "Deduplication Key",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 2000,
+            "pattern": "^[\\x20-\\x7E]+$(?![\\s\\S])"
+          },
+          "help": "Use one stable key per logical meeting, such as a calendar ID plus event occurrence ID. Reuse it on retries. Serialize creation: simultaneous first calls can create duplicates."
+        },
+        {
+          "name": "joinAt",
+          "label": "Join At",
+          "type": "date"
+        },
+        {
+          "name": "videoRequired",
+          "label": "Record Video",
+          "type": "boolean",
+          "required": true,
+          "default": false
+        },
+        {
+          "name": "transcriptionMode",
+          "label": "Transcription",
+          "type": "select",
+          "required": true,
+          "default": "none",
+          "options": [
+            {
+              "label": "None",
+              "value": "none"
+            },
+            {
+              "label": "Post-call",
+              "value": "post",
+              "nested": [
+                {
+                  "name": "postCallProvider",
+                  "label": "Provider",
+                  "type": "select",
+                  "required": true,
+                  "default": "meetstream",
+                  "options": [
+                    {
+                      "label": "meetstream",
+                      "value": "meetstream"
+                    },
+                    {
+                      "label": "deepgram",
+                      "value": "deepgram"
+                    },
+                    {
+                      "label": "assemblyai",
+                      "value": "assemblyai"
+                    },
+                    {
+                      "label": "jigsawstack",
+                      "value": "jigsawstack"
+                    },
+                    {
+                      "label": "sarvam",
+                      "value": "sarvam"
+                    },
+                    {
+                      "label": "meeting_captions",
+                      "value": "meeting_captions"
+                    }
+                  ]
+                },
+                {
+                  "name": "transcriptionLanguage",
+                  "label": "Language",
+                  "type": "text",
+                  "help": "Optional provider language code. Leave blank for the provider default."
+                },
+                {
+                  "name": "providerOptions",
+                  "label": "Provider Options (JSON)",
+                  "type": "text",
+                  "default": "{}",
+                  "multiline": true,
+                  "validate": {
+                    "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+                  },
+                  "advanced": true,
+                  "help": "Overrides the provider defaults. Enter a JSON object."
+                }
+              ]
+            },
+            {
+              "label": "Post-call (n8n name)",
+              "value": "postCall",
+              "nested": [
+                {
+                  "name": "postCallProvider",
+                  "label": "Provider",
+                  "type": "select",
+                  "required": true,
+                  "default": "meetstream",
+                  "options": [
+                    {
+                      "label": "meetstream",
+                      "value": "meetstream"
+                    },
+                    {
+                      "label": "deepgram",
+                      "value": "deepgram"
+                    },
+                    {
+                      "label": "assemblyai",
+                      "value": "assemblyai"
+                    },
+                    {
+                      "label": "jigsawstack",
+                      "value": "jigsawstack"
+                    },
+                    {
+                      "label": "sarvam",
+                      "value": "sarvam"
+                    },
+                    {
+                      "label": "meeting_captions",
+                      "value": "meeting_captions"
+                    }
+                  ]
+                },
+                {
+                  "name": "transcriptionLanguage",
+                  "label": "Language",
+                  "type": "text",
+                  "help": "Optional provider language code. Leave blank for the provider default."
+                },
+                {
+                  "name": "providerOptions",
+                  "label": "Provider Options (JSON)",
+                  "type": "text",
+                  "default": "{}",
+                  "multiline": true,
+                  "validate": {
+                    "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+                  },
+                  "advanced": true,
+                  "help": "Overrides the provider defaults. Enter a JSON object."
+                }
+              ]
+            },
+            {
+              "label": "Live",
+              "value": "live",
+              "nested": [
+                {
+                  "name": "liveProvider",
+                  "label": "Provider",
+                  "type": "select",
+                  "required": true,
+                  "default": "deepgram_streaming",
+                  "options": [
+                    {
+                      "label": "deepgram_streaming",
+                      "value": "deepgram_streaming"
+                    },
+                    {
+                      "label": "assemblyai_streaming",
+                      "value": "assemblyai_streaming"
+                    }
+                  ]
+                },
+                {
+                  "name": "transcriptionLanguage",
+                  "label": "Language",
+                  "type": "text",
+                  "help": "Optional provider language code. Leave blank for the provider default."
+                },
+                {
+                  "name": "providerOptions",
+                  "label": "Provider Options (JSON)",
+                  "type": "text",
+                  "default": "{}",
+                  "multiline": true,
+                  "validate": {
+                    "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+                  },
+                  "advanced": true,
+                  "help": "Overrides the provider defaults. Enter a JSON object."
+                },
+                {
+                  "name": "liveWebhookUrl",
+                  "label": "Live Transcript Webhook URL",
+                  "type": "url",
+                  "required": true,
+                  "validate": {
+                    "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+                  },
+                  "help": "Streaming transcript chunks use a separate channel from meeting events."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "recordingConfig",
+          "label": "Recording Configuration Override",
+          "type": "text",
+          "default": "{}",
+          "multiline": true,
+          "validate": {
+            "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+          },
+          "advanced": true,
+          "help": "Optional complete recording_config for existing advanced scenarios. A nonempty object overrides the provider controls. Do not enable a live provider in post-call mode."
+        },
+        {
+          "name": "callbackUrl",
+          "label": "Lifecycle Callback URL",
+          "type": "url",
+          "advanced": true,
+          "validate": {
+            "pattern": "^[Hh][Tt][Tt][Pp][Ss]://[^\\s]+$(?![\\s\\S])"
+          },
+          "help": "Per-bot callbacks are unsigned. Use a signed workspace webhook through the verification relay for production events."
+        },
+        {
+          "name": "customAttributes",
+          "label": "Custom Attributes",
+          "type": "text",
+          "default": "{}",
+          "multiline": true,
+          "validate": {
+            "pattern": "^\\s*\\{[\\s\\S]*\\}\\s*$(?![\\s\\S])"
+          },
+          "advanced": true,
+          "help": "A JSON object echoed in events. Include destination keys, never credentials."
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/create_bot",
+        "method": "POST",
+        "type": "json",
+        "temp": {
+          "request": {
+            "meeting_link": "{{parameters.meetingLink}}",
+            "bot_name": "{{parameters.botName}}",
+            "deduplication_key": "{{parameters.deduplicationKey}}",
+            "video_required": "{{parameters.videoRequired}}",
+            "join_at": "{{if(parameters.joinAt, formatDate(parameters.joinAt, 'YYYY-MM-DDTHH:mm:ss.SSS[Z]', 'UTC'), null)}}",
+            "callback_url": "{{parameters.callbackUrl}}",
+            "custom_attributes": "{{parseJSON(ifempty(parameters.customAttributes, '{}'))}}",
+            "recording_config": "{{if(length(keys(parseJSON(ifempty(parameters.recordingConfig, '{}')))) > 0, parseJSON(ifempty(parameters.recordingConfig, '{}')), parseJSON('{\"transcript\":{\"provider\":{' + createJSON(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream'))) + ':' + createJSON(toCollection(merge(toArray(parseJSON(switch(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')), 'meetstream', '{\"language\":\"auto\",\"translate\":false}', 'deepgram', '{\"model\":\"nova-3\",\"language\":\"en\",\"punctuate\":true,\"smart_format\":true,\"diarize\":true,\"paragraphs\":true,\"numerals\":true,\"filler_words\":false,\"utterances\":true,\"utt_split\":0.8,\"detect_language\":false}', 'assemblyai', '{\"speech_models\":[\"universal-2\"],\"language_code\":\"en_us\",\"speaker_labels\":true,\"punctuate\":true,\"format_text\":true,\"filter_profanity\":false,\"redact_pii\":false,\"auto_chapters\":false,\"entity_detection\":false}', 'jigsawstack', '{\"language\":\"auto\",\"translate\":false,\"by_speaker\":true}', 'sarvam', '{\"model\":\"saaras:v3\",\"language_code\":\"en-IN\",\"mode\":\"transcribe\",\"with_diarization\":true}', 'meeting_captions', '{}', 'deepgram_streaming', '{\"transcription_mode\":\"sentence\",\"model\":\"nova-2\",\"language\":\"en\",\"punctuate\":true,\"smart_format\":true,\"endpointing\":300,\"vad_events\":true,\"utterance_end_ms\":1000,\"encoding\":\"linear16\",\"channels\":1}', 'assemblyai_streaming', '{\"transcription_mode\":\"raw\",\"sample_rate\":48000,\"speech_model\":\"universal-streaming-english\",\"format_turns\":false,\"encoding\":\"pcm_s16le\",\"vad_threshold\":\"0.4\",\"end_of_turn_confidence_threshold\":\"0.4\",\"inactivity_timeout\":300,\"min_end_of_turn_silence_when_confident\":\"400\",\"max_turn_silence\":\"1280\"}', '{}'))), toArray(if(parameters.transcriptionLanguage && if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')) != 'meeting_captions', parseJSON('{\"' + switch(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')), 'assemblyai', 'language_code', 'sarvam', 'language_code', 'language') + '\":' + createJSON(ifempty(parameters.transcriptionLanguage, '')) + '}'), parseJSON('{}'))), toArray(parseJSON(ifempty(parameters.providerOptions, '{}')))), 'key', 'value')) + '}}}'))}}",
+            "live_transcription_required": {
+              "webhook_url": "{{parameters.liveWebhookUrl}}"
+            }
+          }
+        },
+        "body": "{{omit(temp.request, if(parameters.joinAt, '', 'join_at'), if(parameters.callbackUrl, '', 'callback_url'), if(parameters.transcriptionMode == 'none', 'recording_config', ''), if(parameters.transcriptionMode == 'live', '', 'live_transcription_required'), if(length(keys(parseJSON(ifempty(parameters.customAttributes, '{}')))) == 0, 'custom_attributes', ''))}}",
+        "response": {
+          "output": {
+            "bot_id": "{{body.bot_id}}",
+            "transcript_id": "{{body.transcript_id}}",
+            "meeting_url": "{{body.meeting_url}}",
+            "status": "{{body.status}}",
+            "join_at": "{{if(body.join_at, parseDate(body.join_at, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+            "replayed": "{{statusCode == 200}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        },
+        {
+          "name": "meeting_url",
+          "label": "Meeting URL",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "text"
+        },
+        {
+          "name": "join_at",
+          "label": "Join At",
+          "type": "date"
+        },
+        {
+          "name": "replayed",
+          "label": "Replayed",
+          "type": "boolean"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "transcript_id": "transcript-example",
+        "meeting_url": "https://meet.google.com/example-only",
+        "status": "Scheduled",
+        "join_at": "2026-10-20T06:04:00.000Z",
+        "replayed": false
+      }
+    },
+    "getBot": {
+      "metadata": {
+        "name": "getBot",
+        "typeId": 4,
+        "label": "Get a Bot",
+        "description": "Retrieves bot details and current status.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/detail",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "output": {
+            "bot_id": "{{body.bot_details.BotID}}",
+            "status": "{{body.bot_details.Status}}",
+            "meeting_url": "{{body.bot_details.MeetingLink}}",
+            "platform": "{{body.bot_details.Platform}}",
+            "transcript_id": "{{body.bot_details.transcript_id}}",
+            "created_at": "{{if(body.bot_details.CreatedAt, parseDate(body.bot_details.CreatedAt, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+            "updated_at": "{{if(body.bot_details.LastUpdatedAt, parseDate(body.bot_details.LastUpdatedAt, 'X'), null)}}",
+            "details": "{{body.bot_details}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "text"
+        },
+        {
+          "name": "meeting_url",
+          "label": "Meeting URL",
+          "type": "text"
+        },
+        {
+          "name": "platform",
+          "label": "Platform",
+          "type": "text"
+        },
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "label": "Created At",
+          "type": "date"
+        },
+        {
+          "name": "updated_at",
+          "label": "Updated At",
+          "type": "date"
+        },
+        {
+          "name": "details",
+          "label": "Bot Details",
+          "type": "collection"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "status": "Stopped",
+        "platform": "GoogleMeet",
+        "transcript_id": "transcript-example",
+        "details": {}
+      }
+    },
+    "getTranscriptions": {
+      "metadata": {
+        "name": "getTranscriptions",
+        "typeId": 9,
+        "label": "List Transcriptions",
+        "description": "Lists transcription jobs and their transcript IDs for a bot.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        },
+        {
+          "name": "limit",
+          "label": "Limit",
+          "type": "uinteger",
+          "required": true,
+          "default": 10,
+          "validate": {
+            "min": 1,
+            "max": 100
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/transcriptions",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "limit": "{{parameters.limit}}",
+          "iterate": "{{body.transcriptions}}",
+          "output": {
+            "bot_id": "{{parameters.botId}}",
+            "transcript_id": "{{item.transcript_id}}",
+            "provider": "{{item.provider}}",
+            "status": "{{item.status}}",
+            "created_at": "{{if(item.created_at, parseDate(item.created_at, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+            "config": "{{item.config}}",
+            "download_urls": "{{item.download_urls}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        },
+        {
+          "name": "provider",
+          "label": "Provider",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "label": "Status",
+          "type": "text"
+        },
+        {
+          "name": "created_at",
+          "label": "Created At",
+          "type": "date"
+        },
+        {
+          "name": "config",
+          "label": "Configuration",
+          "type": "collection"
+        },
+        {
+          "name": "download_urls",
+          "label": "Download URLs",
+          "type": "collection"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "transcript_id": "transcript-example",
+        "provider": "meetstream",
+        "status": "Success",
+        "created_at": "2026-10-13T12:00:00.000Z"
+      }
+    },
+    "getLatestTranscription": {
+      "metadata": {
+        "name": "getLatestTranscription",
+        "typeId": 4,
+        "label": "Get the Latest Successful Transcription",
+        "description": "Retrieves the latest completed post-call transcription ID for a bot.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/transcriptions",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "valid": {
+            "condition": "{{length(trim(join(map(remove(body.transcriptions, null), 'transcript_id', 'status', 'Success'), ''))) > 0}}",
+            "type": "DataError",
+            "message": "No successful post-call transcription is ready. Wait for transcription.processed, then try again. Caption and live providers use separate artifacts."
+          },
+          "iterate": {
+            "container": "{{remove(body.transcriptions, null)}}",
+            "condition": "{{item && item.status == 'Success' && trim(toString(item.transcript_id))}}"
+          },
+          "output": {
+            "transcript_id": "{{item.transcript_id}}",
+            "created_at": "{{if(item.created_at && replace(item.created_at, '/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})$/', '') == '', formatDate(parseDate(if(item.created_at && replace(item.created_at, '/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})$/', '') == '', item.created_at, '1970-01-01T00:00:00Z'), 'YYYY-MM-DDTHH:mm:ss.SSSZ'), 'YYYY-MM-DDTHH:mm:ss.SSS[Z]', 'UTC'), '')}}"
+          },
+          "wrapper": {
+            "bot_id": "{{parameters.botId}}",
+            "transcript_id": "{{get(first(sort(output, 'desc', 'created_at')), 'transcript_id')}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "transcript_id": "transcript-example"
+      }
+    },
+    "getTranscript": {
+      "metadata": {
+        "name": "getTranscript",
+        "typeId": 4,
+        "label": "Get a Transcript",
+        "description": "Retrieves transcript text, segments, and metadata by transcript ID.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "transcriptId",
+          "label": "Transcript ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        },
+        {
+          "name": "raw",
+          "label": "Raw Provider Response",
+          "type": "boolean",
+          "required": true,
+          "default": false
+        }
+      ],
+      "api": {
+        "url": "/api/v1/transcript/{{encodeURL(parameters.transcriptId)}}/get_transcript",
+        "encodeUrl": false,
+        "method": "GET",
+        "qs": {
+          "raw": "{{if(parameters.raw, true, null)}}"
+        },
+        "response": {
+          "iterate": "{{remove(if(parameters.raw, parseJSON('[]'), body), null)}}",
+          "output": {
+            "text": "{{if(substring(createJSON(get(item, 'transcript')), 0, 1) == '\"' && trim(get(item, 'transcript')), get(item, 'transcript'), if(replace(createJSON(remove(map(remove(get(item, 'words'), null), 'text'), null)), '/^\\[(?:\"(?:[^\"\\\\]|\\\\.)*\"(?:,\"(?:[^\"\\\\]|\\\\.)*\")*)?\\]$/', '') == '', join(remove(map(remove(get(item, 'words'), null), 'text'), null), ' '), ''))}}",
+            "incomplete": "{{!(substring(createJSON(get(item, 'transcript')), 0, 1) == '\"' && trim(get(item, 'transcript'))) && !(replace(createJSON(remove(map(remove(get(item, 'words'), null), 'text'), null)), '/^\\[(?:\"(?:[^\"\\\\]|\\\\.)*\"(?:,\"(?:[^\"\\\\]|\\\\.)*\")*)?\\]$/', '') == '')}}"
+          },
+          "wrapper": {
+            "transcript_id": "{{parameters.transcriptId}}",
+            "text": "{{if(parameters.raw, '', join(remove(map(output, 'text'), ''), decodeURL('%0A')))}}",
+            "text_incomplete": "{{length(map(output, 'incomplete', 'incomplete', true)) > 0}}",
+            "segments": "{{if(parameters.raw, null, body)}}",
+            "raw_json": "{{createJSON(body)}}",
+            "raw": "{{parameters.raw}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        },
+        {
+          "name": "text",
+          "label": "Transcript Text",
+          "type": "text"
+        },
+        {
+          "name": "text_incomplete",
+          "label": "Text Contains Unsupported Word Values",
+          "type": "boolean"
+        },
+        {
+          "name": "segments",
+          "label": "Segments / Participant Groups",
+          "type": "array",
+          "spec": [
+            {
+              "name": "speaker",
+              "label": "Speaker",
+              "type": "text"
+            },
+            {
+              "name": "transcript",
+              "label": "Transcript",
+              "type": "text"
+            },
+            {
+              "name": "start_time",
+              "label": "Start Time",
+              "type": "number"
+            },
+            {
+              "name": "end_time",
+              "label": "End Time",
+              "type": "number"
+            },
+            {
+              "name": "participant",
+              "label": "Participant",
+              "type": "collection",
+              "spec": [
+                {
+                  "name": "id",
+                  "label": "ID",
+                  "type": "integer"
+                },
+                {
+                  "name": "name",
+                  "label": "Name",
+                  "type": "text"
+                },
+                {
+                  "name": "platform",
+                  "label": "Platform",
+                  "type": "text"
+                }
+              ]
+            },
+            {
+              "name": "words",
+              "label": "Words",
+              "type": "array",
+              "spec": [
+                {
+                  "name": "text",
+                  "label": "Text",
+                  "type": "text"
+                },
+                {
+                  "name": "word",
+                  "label": "Word",
+                  "type": "text"
+                },
+                {
+                  "name": "punctuated_word",
+                  "label": "Punctuated Word",
+                  "type": "text"
+                },
+                {
+                  "name": "start_timestamp",
+                  "label": "Start Timestamp",
+                  "type": "any"
+                },
+                {
+                  "name": "end_timestamp",
+                  "label": "End Timestamp",
+                  "type": "any"
+                }
+              ]
+            },
+            {
+              "name": "language_code",
+              "label": "Language Code",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "name": "raw_json",
+          "label": "Full Response JSON",
+          "type": "text"
+        },
+        {
+          "name": "raw",
+          "label": "Raw Provider Response",
+          "type": "boolean"
+        }
+      ],
+      "samples": {
+        "transcript_id": "transcript-example",
+        "text": "This is a synthetic transcript.",
+        "text_incomplete": false,
+        "segments": [
+          {
+            "speaker": "Example Speaker",
+            "transcript": "This is a synthetic transcript.",
+            "start_time": 0,
+            "end_time": 3
+          }
+        ],
+        "raw_json": "[]",
+        "raw": false
+      }
+    },
+    "getSummary": {
+      "metadata": {
+        "name": "getSummary",
+        "typeId": 4,
+        "label": "Get a Summary",
+        "description": "Retrieves a completed summary when supported; rejects processing and empty responses.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/summary",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "valid": {
+            "condition": "{{statusCode == 200 && body != null && createJSON(body) != '{}' && createJSON(body) != '[]' && replace(createJSON(body), '/^\"(?:\\\\[nrt]|\\s)*\"$/', '') != ''}}",
+            "type": "DataError",
+            "message": "No completed summary was returned. HTTP 202 means processing; retry later with a bounded policy. An empty 200 response is not a completed summary."
+          },
+          "error": {
+            "400": {
+              "type": "DataError",
+              "message": "[400] Check the meeting URL, options, and scheduled join time. Scheduled times must be in the future."
+            },
+            "401": {
+              "type": "InvalidAccessTokenError",
+              "message": "[401] Update the API key in your MeetStream connection."
+            },
+            "403": {
+              "type": "DataError",
+              "message": "[403] Check your MeetStream API key, account permissions, credits, and resource ownership. This can be a resource or credit restriction even when the connection is valid."
+            },
+            "404": {
+              "type": "DataError",
+              "message": "[404] The summary endpoint or this bot's summary is unavailable. Verify the bot with Get a Bot and confirm summary API support with MeetStream. Waiting or retranscribing is not guaranteed to resolve this response."
+            },
+            "409": {
+              "type": "DataError",
+              "message": "[409] The deduplication key belongs to a different meeting, or transcription was not enabled. Check the bot configuration."
+            },
+            "429": {
+              "type": "RateLimitError",
+              "message": "[429] MeetStream is throttling requests or has no available signed-in login. Retry-After: {{ifempty(get(headers, 'retry-after'), 'not supplied')}}. Use a bounded retry policy and check signed-in bot capacity."
+            },
+            "507": {
+              "type": "DataError",
+              "message": "[507] MeetStream returned an Idempotency-Key replay. Do not retry it. Use Create a Bot with a Deduplication Key for native Make replay handling."
+            },
+            "message": "[{{statusCode}}] MeetStream could not complete this request. Check the module inputs and service status."
+          },
+          "output": {
+            "bot_id": "{{parameters.botId}}",
+            "summary": "{{body}}",
+            "summary_json": "{{createJSON(body)}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "summary",
+          "label": "Summary",
+          "type": "any"
+        },
+        {
+          "name": "summary_json",
+          "label": "Summary JSON",
+          "type": "text"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "summary": {
+          "summary": "Synthetic meeting summary."
+        },
+        "summary_json": "{\"summary\":\"Synthetic meeting summary.\"}"
+      }
+    },
+    "getRecording": {
+      "metadata": {
+        "name": "getRecording",
+        "typeId": 4,
+        "label": "Get a Recording",
+        "description": "Retrieves video metadata and a fresh download URL valid for one hour.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/get_video",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "valid": {
+            "condition": "{{substring(createJSON(body.video_url), 0, 1) == '\"' && body.video_url && replace(body.video_url, '/^[Hh][Tt][Tt][Pp][Ss]:[/][/][^\\s]+$/', '') == ''}}",
+            "type": "DataError",
+            "message": "Recording is not ready or has no valid HTTPS download URL. Enable video recording, wait for video.processed with Success, and check media retention before fetching a fresh URL."
+          },
+          "output": {
+            "bot_id": "{{parameters.botId}}",
+            "video_url": "{{body.video_url}}",
+            "video_info": "{{body.video_info}}",
+            "fetched_at": "{{now}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "video_url",
+          "label": "Video Download URL",
+          "type": "text"
+        },
+        {
+          "name": "video_info",
+          "label": "Video Information",
+          "type": "collection",
+          "spec": [
+            {
+              "name": "duration",
+              "label": "Duration (seconds)",
+              "type": "number"
+            },
+            {
+              "name": "size_mb",
+              "label": "Size (MB)",
+              "type": "number"
+            },
+            {
+              "name": "resolution",
+              "label": "Resolution",
+              "type": "text"
+            },
+            {
+              "name": "fps",
+              "label": "FPS",
+              "type": "number"
+            },
+            {
+              "name": "frames_processed",
+              "label": "Frames Processed",
+              "type": "integer"
+            },
+            {
+              "name": "corrupted_frames",
+              "label": "Corrupted Frames",
+              "type": "integer"
+            }
+          ]
+        },
+        {
+          "name": "fetched_at",
+          "label": "Fetched At",
+          "type": "date"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "video_url": "https://media.example.invalid/synthetic.webm",
+        "video_info": {
+          "duration": 30,
+          "size_mb": 1
+        },
+        "fetched_at": "2026-10-13T12:00:00.000Z"
+      }
+    },
+    "leaveMeeting": {
+      "metadata": {
+        "name": "leaveMeeting",
+        "typeId": 4,
+        "label": "Leave a Meeting",
+        "description": "Asks an active bot to leave or cancels a scheduled bot while retaining its data.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "botId",
+          "label": "Bot ID",
+          "type": "text",
+          "required": true,
+          "validate": {
+            "min": 1,
+            "max": 256,
+            "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+          }
+        }
+      ],
+      "api": {
+        "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/remove_bot",
+        "encodeUrl": false,
+        "method": "GET",
+        "response": {
+          "output": {
+            "bot_id": "{{body.bot_id}}",
+            "status": "{{body.status}}",
+            "bot_status": "{{body.bot_status}}",
+            "control_request_id": "{{body.control_request_id}}",
+            "requested_at": "{{if(body.requested_at, parseDate(body.requested_at, 'X'), null)}}",
+            "acknowledged_at": "{{if(body.acknowledged_at, parseDate(body.acknowledged_at, 'X'), null)}}",
+            "completed_at": "{{if(body.completed_at, parseDate(body.completed_at, 'X'), null)}}",
+            "reason": "{{body.reason}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "status",
+          "label": "Stop Request Status",
+          "type": "text"
+        },
+        {
+          "name": "bot_status",
+          "label": "Bot Status",
+          "type": "text"
+        },
+        {
+          "name": "control_request_id",
+          "label": "Control Request ID",
+          "type": "text"
+        },
+        {
+          "name": "requested_at",
+          "label": "Requested At",
+          "type": "date"
+        },
+        {
+          "name": "acknowledged_at",
+          "label": "Acknowledged At",
+          "type": "date"
+        },
+        {
+          "name": "completed_at",
+          "label": "Completed At",
+          "type": "date"
+        },
+        {
+          "name": "reason",
+          "label": "Reason",
+          "type": "text"
+        }
+      ],
+      "samples": {
+        "bot_id": "bot-example",
+        "status": "stopping",
+        "bot_status": "InMeeting",
+        "control_request_id": "control-example"
+      }
+    },
+    "makeApiCall": {
+      "metadata": {
+        "name": "makeApiCall",
+        "typeId": 12,
+        "label": "Make an API Call",
+        "description": "Performs an arbitrary authorized API call.",
+        "connection": "apiKey"
+      },
+      "parameters": [],
+      "expect": [
+        {
+          "name": "url",
+          "label": "URL",
+          "type": "text",
+          "required": true,
+          "default": "/api/v1/bots",
+          "validate": {
+            "pattern": "^/api/v[0-9]+(?:/[A-Za-z0-9_%~-]+)+$(?![\\s\\S])"
+          },
+          "help": "Enter a path relative to https://api.meetstream.ai, for example /api/v1/bots. Put query parameters below. External hosts and redirects are blocked."
+        },
+        {
+          "name": "method",
+          "label": "Method",
+          "type": "select",
+          "required": true,
+          "default": "GET",
+          "options": [
+            {
+              "label": "GET",
+              "value": "GET"
+            },
+            {
+              "label": "POST",
+              "value": "POST"
+            },
+            {
+              "label": "PUT",
+              "value": "PUT"
+            },
+            {
+              "label": "PATCH",
+              "value": "PATCH"
+            },
+            {
+              "label": "DELETE",
+              "value": "DELETE"
+            }
+          ]
+        },
+        {
+          "name": "qs",
+          "label": "Query String",
+          "type": "array",
+          "spec": [
+            {
+              "name": "key",
+              "label": "Key",
+              "type": "text",
+              "required": true
+            },
+            {
+              "name": "value",
+              "label": "Value",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "name": "headers",
+          "label": "Headers",
+          "type": "array",
+          "spec": [
+            {
+              "name": "key",
+              "label": "Key",
+              "type": "text",
+              "required": true,
+              "validate": {
+                "pattern": "^(?!(?:[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn]|[Hh][Oo][Ss][Tt]|[Cc][Oo][Oo][Kk][Ii][Ee]|[Pp][Rr][Oo][Xx][Yy]-[Aa][Uu][Tt][Hh][Oo][Rr][Ii][Zz][Aa][Tt][Ii][Oo][Nn])$)[A-Za-z0-9-]+$(?![\\s\\S])"
+              }
+            },
+            {
+              "name": "value",
+              "label": "Value",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "name": "body",
+          "label": "Body",
+          "type": "text",
+          "multiline": true,
+          "help": "Optional JSON request body. You are responsible for the method, path, and body. Writes can change meetings and incur charges. Do not put credentials here."
+        }
+      ],
+      "api": {
+        "url": "https://api.meetstream.ai{{parameters.url}}",
+        "method": "{{parameters.method}}",
+        "type": "text",
+        "body": "{{parameters.body}}",
+        "qs": {
+          "{{...}}": "{{toCollection(parameters.qs, 'key', 'value')}}"
+        },
+        "headers": {
+          "{{...}}": "{{toCollection(parameters.headers, 'key', 'value')}}",
+          "Authorization": "Token {{connection.apiKey}}",
+          "Content-Type": "application/json"
+        },
+        "followRedirects": false,
+        "followAllRedirects": false,
+        "response": {
+          "output": {
+            "body": "{{body}}",
+            "headers": "{{omit(headers, 'set-cookie')}}",
+            "statusCode": "{{statusCode}}"
+          }
+        }
+      },
+      "interface": [
+        {
+          "name": "body",
+          "label": "Body",
+          "type": "any"
+        },
+        {
+          "name": "headers",
+          "label": "Headers",
+          "type": "collection"
+        },
+        {
+          "name": "statusCode",
+          "label": "Status Code",
+          "type": "integer"
+        }
+      ],
+      "samples": {
+        "body": {
+          "bots": []
+        },
+        "headers": {},
+        "statusCode": 200
+      }
+    },
+    "watchMeetingEvents": {
+      "metadata": {
+        "name": "watchMeetingEvents",
+        "typeId": 10,
+        "label": "Watch Meeting Events",
+        "description": "Receives verified meeting lifecycle and artifact events through the MeetStream relay.",
+        "webhook": "meetingEvents"
+      },
+      "parameters": [
+        {
+          "type": "banner",
+          "title": "Connect a verified workspace webhook",
+          "theme": "info",
+          "text": "Use the included verification relay. Copy this webhook URL into the relay configuration, and register the relay HTTPS URL at app.meetstream.ai/webhooks. Set the same relay signing key in this webhook and the relay secrets. Subscribe to transcription.processed, video.processed, bot.done and all five ending events. See the setup guide. Do not send unsigned per-bot callbacks directly to this trigger."
+        }
+      ],
+      "expect": [],
+      "api": {},
+      "interface": [
+        {
+          "name": "delivery_id",
+          "label": "Delivery ID",
+          "type": "text"
+        },
+        {
+          "name": "bot_id",
+          "label": "Bot ID",
+          "type": "text"
+        },
+        {
+          "name": "bot_event",
+          "label": "Bot Event",
+          "type": "text"
+        },
+        {
+          "name": "event",
+          "label": "Legacy Event",
+          "type": "text"
+        },
+        {
+          "name": "bot_status",
+          "label": "Bot Status",
+          "type": "text"
+        },
+        {
+          "name": "status_code",
+          "label": "Status Code",
+          "type": "integer"
+        },
+        {
+          "name": "message",
+          "label": "Message",
+          "type": "text"
+        },
+        {
+          "name": "timestamp",
+          "label": "Event Timestamp",
+          "type": "date"
+        },
+        {
+          "name": "transcript_id",
+          "label": "Transcript ID",
+          "type": "text"
+        },
+        {
+          "name": "custom_attributes",
+          "label": "Custom Attributes",
+          "type": "collection"
+        },
+        {
+          "name": "payload",
+          "label": "Event Payload",
+          "type": "collection"
+        }
+      ],
+      "samples": {
+        "delivery_id": "delivery-example",
+        "bot_id": "bot-example",
+        "bot_event": "transcription.processed",
+        "event": "transcription.processed",
+        "status_code": 200,
+        "payload": {
+          "bot_id": "bot-example",
+          "bot_event": "transcription.processed",
+          "transcript_status": "Success"
+        }
+      }
+    }
+  }
+}

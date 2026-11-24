@@ -1,0 +1,7 @@
+{
+  "name": "getSummary",
+  "typeId": 4,
+  "label": "Get a Summary",
+  "description": "Retrieves a completed summary when supported; rejects processing and empty responses.",
+  "connection": "apiKey"
+}

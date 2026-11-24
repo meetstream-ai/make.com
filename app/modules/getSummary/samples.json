@@ -1,0 +1,7 @@
+{
+  "bot_id": "bot-example",
+  "summary": {
+    "summary": "Synthetic meeting summary."
+  },
+  "summary_json": "{\"summary\":\"Synthetic meeting summary.\"}"
+}

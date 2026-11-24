@@ -1,0 +1,23 @@
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: relay/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3333:3333"
+    environment:
+      MEETSTREAM_WEBHOOK_SECRET: ${MEETSTREAM_WEBHOOK_SECRET:?Configure workspace signing secret}
+      MAKE_RELAY_SECRET: ${MAKE_RELAY_SECRET:?Configure relay signing key}
+      MAKE_WEBHOOK_URL: ${MAKE_WEBHOOK_URL:?Configure Make webhook URL}
+    volumes:
+      - relay-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  relay-data:

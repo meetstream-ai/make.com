@@ -1,0 +1,42 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "status",
+    "label": "Stop Request Status",
+    "type": "text"
+  },
+  {
+    "name": "bot_status",
+    "label": "Bot Status",
+    "type": "text"
+  },
+  {
+    "name": "control_request_id",
+    "label": "Control Request ID",
+    "type": "text"
+  },
+  {
+    "name": "requested_at",
+    "label": "Requested At",
+    "type": "date"
+  },
+  {
+    "name": "acknowledged_at",
+    "label": "Acknowledged At",
+    "type": "date"
+  },
+  {
+    "name": "completed_at",
+    "label": "Completed At",
+    "type": "date"
+  },
+  {
+    "name": "reason",
+    "label": "Reason",
+    "type": "text"
+  }
+]

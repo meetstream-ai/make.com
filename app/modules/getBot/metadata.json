@@ -1,0 +1,7 @@
+{
+  "name": "getBot",
+  "typeId": 4,
+  "label": "Get a Bot",
+  "description": "Retrieves bot details and current status.",
+  "connection": "apiKey"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "watchMeetingEvents",
+  "typeId": 10,
+  "label": "Watch Meeting Events",
+  "description": "Receives verified meeting lifecycle and artifact events through the MeetStream relay.",
+  "webhook": "meetingEvents"
+}
