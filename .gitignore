@@ -1,0 +1,8 @@
+node_modules/
+.local/
+.secrets/
+.env
+.env.*
+*.sqlite*
+*.db*
+.DS_Store

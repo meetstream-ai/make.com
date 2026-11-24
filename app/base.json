@@ -1,0 +1,25 @@
+{
+  "baseUrl": "https://api.meetstream.ai",
+  "headers": {
+    "Authorization": "Token {{connection.apiKey}}",
+    "Accept": "application/json"
+  },
+  "followRedirects": false,
+  "followAllRedirects": false,
+  "response": {
+    "valid": "{{statusCode >= 200 && statusCode < 300}}",
+    "error": {
+      "message": "[{{statusCode}}] MeetStream could not complete this request. Check the module inputs and service status.",
+      "400": { "type": "DataError", "message": "[400] Check the meeting URL, options, and scheduled join time. Scheduled times must be in the future." },
+      "401": { "type": "InvalidAccessTokenError", "message": "[401] Update the API key in your MeetStream connection." },
+      "403": { "type": "DataError", "message": "[403] Check your MeetStream API key, account permissions, credits, and resource ownership. This can be a resource or credit restriction even when the connection is valid." },
+      "404": { "type": "DataError", "message": "[404] The resource was not found or the artifact is not ready. Verify the ID and wait for the corresponding processed event." },
+      "409": { "type": "DataError", "message": "[409] The deduplication key belongs to a different meeting, or transcription was not enabled. Check the bot configuration." },
+      "429": { "type": "RateLimitError", "message": "[429] MeetStream is throttling requests or has no available signed-in login. Retry-After: {{ifempty(get(headers, 'retry-after'), 'not supplied')}}. Use a bounded retry policy and check signed-in bot capacity." },
+      "507": { "type": "DataError", "message": "[507] MeetStream returned an Idempotency-Key replay. Do not retry it. Use Create a Bot with a Deduplication Key for native Make replay handling." }
+    }
+  },
+  "log": {
+    "sanitize": ["request.headers.authorization", "request.body", "response.body", "response.headers.set-cookie"]
+  }
+}

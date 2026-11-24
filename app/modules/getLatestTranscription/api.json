@@ -1,0 +1,24 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/transcriptions",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "valid": {
+      "condition": "{{length(trim(join(map(remove(body.transcriptions, null), 'transcript_id', 'status', 'Success'), ''))) > 0}}",
+      "type": "DataError",
+      "message": "No successful post-call transcription is ready. Wait for transcription.processed, then try again. Caption and live providers use separate artifacts."
+    },
+    "iterate": {
+      "container": "{{remove(body.transcriptions, null)}}",
+      "condition": "{{item && item.status == 'Success' && trim(toString(item.transcript_id))}}"
+    },
+    "output": {
+      "transcript_id": "{{item.transcript_id}}",
+      "created_at": "{{if(item.created_at && replace(item.created_at, '/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})$/', '') == '', formatDate(parseDate(if(item.created_at && replace(item.created_at, '/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:[.][0-9]+)?(?:Z|[+-][0-9]{2}:?[0-9]{2})$/', '') == '', item.created_at, '1970-01-01T00:00:00Z'), 'YYYY-MM-DDTHH:mm:ss.SSSZ'), 'YYYY-MM-DDTHH:mm:ss.SSS[Z]', 'UTC'), '')}}"
+    },
+    "wrapper": {
+      "bot_id": "{{parameters.botId}}",
+      "transcript_id": "{{get(first(sort(output, 'desc', 'created_at')), 'transcript_id')}}"
+    }
+  }
+}

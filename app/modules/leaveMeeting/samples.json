@@ -1,0 +1,6 @@
+{
+  "bot_id": "bot-example",
+  "status": "stopping",
+  "bot_status": "InMeeting",
+  "control_request_id": "control-example"
+}

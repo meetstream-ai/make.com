@@ -1,0 +1,7 @@
+{
+  "name": "getLatestTranscription",
+  "typeId": 4,
+  "label": "Get the Latest Successful Transcription",
+  "description": "Retrieves the latest completed post-call transcription ID for a bot.",
+  "connection": "apiKey"
+}

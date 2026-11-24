@@ -1,0 +1,8 @@
+{
+  "bot_id": "bot-example",
+  "transcript_id": "transcript-example",
+  "meeting_url": "https://meet.google.com/example-only",
+  "status": "Scheduled",
+  "join_at": "2026-10-20T06:04:00.000Z",
+  "replayed": false
+}

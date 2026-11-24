@@ -1,0 +1,31 @@
+{
+  "url": "/api/v1/bots/create_bot",
+  "method": "POST",
+  "type": "json",
+  "temp": {
+    "request": {
+      "meeting_link": "{{parameters.meetingLink}}",
+      "bot_name": "{{parameters.botName}}",
+      "deduplication_key": "{{parameters.deduplicationKey}}",
+      "video_required": "{{parameters.videoRequired}}",
+      "join_at": "{{if(parameters.joinAt, formatDate(parameters.joinAt, 'YYYY-MM-DDTHH:mm:ss.SSS[Z]', 'UTC'), null)}}",
+      "callback_url": "{{parameters.callbackUrl}}",
+      "custom_attributes": "{{parseJSON(ifempty(parameters.customAttributes, '{}'))}}",
+      "recording_config": "{{if(length(keys(parseJSON(ifempty(parameters.recordingConfig, '{}')))) > 0, parseJSON(ifempty(parameters.recordingConfig, '{}')), parseJSON('{\"transcript\":{\"provider\":{' + createJSON(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream'))) + ':' + createJSON(toCollection(merge(toArray(parseJSON(switch(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')), 'meetstream', '{\"language\":\"auto\",\"translate\":false}', 'deepgram', '{\"model\":\"nova-3\",\"language\":\"en\",\"punctuate\":true,\"smart_format\":true,\"diarize\":true,\"paragraphs\":true,\"numerals\":true,\"filler_words\":false,\"utterances\":true,\"utt_split\":0.8,\"detect_language\":false}', 'assemblyai', '{\"speech_models\":[\"universal-2\"],\"language_code\":\"en_us\",\"speaker_labels\":true,\"punctuate\":true,\"format_text\":true,\"filter_profanity\":false,\"redact_pii\":false,\"auto_chapters\":false,\"entity_detection\":false}', 'jigsawstack', '{\"language\":\"auto\",\"translate\":false,\"by_speaker\":true}', 'sarvam', '{\"model\":\"saaras:v3\",\"language_code\":\"en-IN\",\"mode\":\"transcribe\",\"with_diarization\":true}', 'meeting_captions', '{}', 'deepgram_streaming', '{\"transcription_mode\":\"sentence\",\"model\":\"nova-2\",\"language\":\"en\",\"punctuate\":true,\"smart_format\":true,\"endpointing\":300,\"vad_events\":true,\"utterance_end_ms\":1000,\"encoding\":\"linear16\",\"channels\":1}', 'assemblyai_streaming', '{\"transcription_mode\":\"raw\",\"sample_rate\":48000,\"speech_model\":\"universal-streaming-english\",\"format_turns\":false,\"encoding\":\"pcm_s16le\",\"vad_threshold\":\"0.4\",\"end_of_turn_confidence_threshold\":\"0.4\",\"inactivity_timeout\":300,\"min_end_of_turn_silence_when_confident\":\"400\",\"max_turn_silence\":\"1280\"}', '{}'))), toArray(if(parameters.transcriptionLanguage && if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')) != 'meeting_captions', parseJSON('{\"' + switch(if(parameters.transcriptionMode == 'live', ifempty(parameters.liveProvider, 'deepgram_streaming'), ifempty(parameters.postCallProvider, 'meetstream')), 'assemblyai', 'language_code', 'sarvam', 'language_code', 'language') + '\":' + createJSON(ifempty(parameters.transcriptionLanguage, '')) + '}'), parseJSON('{}'))), toArray(parseJSON(ifempty(parameters.providerOptions, '{}')))), 'key', 'value')) + '}}}'))}}",
+      "live_transcription_required": {
+        "webhook_url": "{{parameters.liveWebhookUrl}}"
+      }
+    }
+  },
+  "body": "{{omit(temp.request, if(parameters.joinAt, '', 'join_at'), if(parameters.callbackUrl, '', 'callback_url'), if(parameters.transcriptionMode == 'none', 'recording_config', ''), if(parameters.transcriptionMode == 'live', '', 'live_transcription_required'), if(length(keys(parseJSON(ifempty(parameters.customAttributes, '{}')))) == 0, 'custom_attributes', ''))}}",
+  "response": {
+    "output": {
+      "bot_id": "{{body.bot_id}}",
+      "transcript_id": "{{body.transcript_id}}",
+      "meeting_url": "{{body.meeting_url}}",
+      "status": "{{body.status}}",
+      "join_at": "{{if(body.join_at, parseDate(body.join_at, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+      "replayed": "{{statusCode == 200}}"
+    }
+  }
+}

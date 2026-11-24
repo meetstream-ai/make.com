@@ -1,0 +1,7 @@
+{
+  "name": "leaveMeeting",
+  "typeId": 4,
+  "label": "Leave a Meeting",
+  "description": "Asks an active bot to leave or cancels a scheduled bot while retaining its data.",
+  "connection": "apiKey"
+}

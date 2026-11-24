@@ -1,0 +1,8 @@
+{
+  "bot_id": "synthetic-bot",
+  "calendar_id": "synthetic-calendar",
+  "event_id": "synthetic-event",
+  "start_at": "synthetic-start-time",
+  "meeting_url": "synthetic-meeting-url",
+  "status": "scheduled"
+}

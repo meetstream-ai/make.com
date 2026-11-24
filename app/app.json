@@ -1,0 +1,10 @@
+{
+  "name": "meetstream",
+  "label": "MeetStream",
+  "description": "Create meeting bots, retrieve transcripts and recordings, and watch meeting events.",
+  "version": 1,
+  "theme": "#2563EB",
+  "language": "en",
+  "public": false,
+  "global": true
+}

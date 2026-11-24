@@ -1,0 +1,15 @@
+{
+  "transcript_id": "transcript-example",
+  "text": "This is a synthetic transcript.",
+  "text_incomplete": false,
+  "segments": [
+    {
+      "speaker": "Example Speaker",
+      "transcript": "This is a synthetic transcript.",
+      "start_time": 0,
+      "end_time": 3
+    }
+  ],
+  "raw_json": "[]",
+  "raw": false
+}

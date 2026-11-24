@@ -1,0 +1,23 @@
+{
+  "url": "https://api.meetstream.ai{{parameters.url}}",
+  "method": "{{parameters.method}}",
+  "type": "text",
+  "body": "{{parameters.body}}",
+  "qs": {
+    "{{...}}": "{{toCollection(parameters.qs, 'key', 'value')}}"
+  },
+  "headers": {
+    "{{...}}": "{{toCollection(parameters.headers, 'key', 'value')}}",
+    "Authorization": "Token {{connection.apiKey}}",
+    "Content-Type": "application/json"
+  },
+  "followRedirects": false,
+  "followAllRedirects": false,
+  "response": {
+    "output": {
+      "body": "{{body}}",
+      "headers": "{{omit(headers, 'set-cookie')}}",
+      "statusCode": "{{statusCode}}"
+    }
+  }
+}

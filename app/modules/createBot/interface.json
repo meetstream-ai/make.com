@@ -1,0 +1,32 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "transcript_id",
+    "label": "Transcript ID",
+    "type": "text"
+  },
+  {
+    "name": "meeting_url",
+    "label": "Meeting URL",
+    "type": "text"
+  },
+  {
+    "name": "status",
+    "label": "Status",
+    "type": "text"
+  },
+  {
+    "name": "join_at",
+    "label": "Join At",
+    "type": "date"
+  },
+  {
+    "name": "replayed",
+    "label": "Replayed",
+    "type": "boolean"
+  }
+]

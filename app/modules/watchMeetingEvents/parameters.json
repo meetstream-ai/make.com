@@ -1,0 +1,8 @@
+[
+  {
+    "type": "banner",
+    "title": "Connect a verified workspace webhook",
+    "theme": "info",
+    "text": "Use the included verification relay. Copy this webhook URL into the relay configuration, and register the relay HTTPS URL at app.meetstream.ai/webhooks. Set the same relay signing key in this webhook and the relay secrets. Subscribe to transcription.processed, video.processed, bot.done and all five ending events. See the setup guide. Do not send unsigned per-bot callbacks directly to this trigger."
+  }
+]

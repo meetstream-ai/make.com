@@ -1,0 +1,18 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/get_video",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "valid": {
+      "condition": "{{substring(createJSON(body.video_url), 0, 1) == '\"' && body.video_url && replace(body.video_url, '/^[Hh][Tt][Tt][Pp][Ss]:[/][/][^\\s]+$/', '') == ''}}",
+      "type": "DataError",
+      "message": "Recording is not ready or has no valid HTTPS download URL. Enable video recording, wait for video.processed with Success, and check media retention before fetching a fresh URL."
+    },
+    "output": {
+      "bot_id": "{{parameters.botId}}",
+      "video_url": "{{body.video_url}}",
+      "video_info": "{{body.video_info}}",
+      "fetched_at": "{{now}}"
+    }
+  }
+}

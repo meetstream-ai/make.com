@@ -1,0 +1,331 @@
+{
+  "name": "Calendar schedule changes → stale mapped bot leaves",
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-calendar:watchEvents",
+      "version": 5,
+      "parameters": {
+        "calendar": "primary",
+        "select": "update",
+        "showDeleted": true,
+        "eventTypes": [
+          "default"
+        ],
+        "limit": 10
+      },
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Watch schedule changes including cancellation tombstones"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "calendarId",
+            "value": "primary"
+          },
+          {
+            "name": "meetingLinkPattern",
+            "value": "/^[\\s\\S]*?(?:^|[\\s>\"'(])(https:\\/\\/(?:meet\\.google\\.com|(?:[A-Za-z0-9-]+\\.)*zoom\\.us|teams\\.(?:microsoft|live)\\.com)\\/[^\\s<>\"')]+)[\\s\\S]*$/i"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "filter": {
+        "name": "Enable after template review and setup",
+        "conditions": [
+          [
+            {
+              "a": "false",
+              "o": "text:equal",
+              "b": "true"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Configure the same calendar ID as the main scenario"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "datastore:ExistRecord",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "key": "{{sha256(2.calendarId + \":\" + 1.id)}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Find saved mapping even when private properties are absent"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "datastore:GetRecord",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "key": "{{sha256(2.calendarId + \":\" + 1.id)}}",
+        "returnWrapped": false
+      },
+      "filter": {
+        "name": "Previously scheduled occurrence",
+        "conditions": [
+          [
+            {
+              "a": "{{3.exist}}",
+              "o": "boolean:equal",
+              "b": true
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 900,
+          "y": 0,
+          "name": "Read the saved cancellation target"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "module": "google-calendar:makeApiCall",
+      "version": 5,
+      "parameters": {},
+      "mapper": {
+        "url": "/v3/calendars/{{encodeURL(2.calendarId)}}/events/{{encodeURL(1.id)}}",
+        "method": "GET",
+        "qs": [],
+        "headers": []
+      },
+      "filter": {
+        "name": "Active saved mapping",
+        "conditions": [
+          [
+            {
+              "a": "{{4.status}}",
+              "o": "text:notequal",
+              "b": "cancelled"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 2700,
+          "y": 0,
+          "name": "Recheck current event even when moved outside the lead window"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "meetingUrl",
+            "value": "{{replace(ifempty(10.body.hangoutLink; \"\") + \" \" + join(map(remove(10.body.conferenceData.entryPoints; null); \"uri\"; \"entryPointType\"; \"video\"); \" \") + \" \" + ifempty(10.body.location; \"\") + \" \" + ifempty(10.body.description; \"\"); 2.meetingLinkPattern; \"$1\")}}"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 3000,
+          "y": 0,
+          "name": "Resolve current schedule before cancelling a stale bot"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "app#meetstream:leaveMeeting",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "botId": "{{4.bot_id}}"
+      },
+      "filter": {
+        "name": "Current event no longer matches the saved schedule",
+        "conditions": [
+          [
+            {
+              "a": "{{10.body.status}}",
+              "o": "text:equal",
+              "b": "cancelled"
+            }
+          ],
+          [
+            {
+              "a": "{{10.body.start.dateTime}}",
+              "o": "text:notequal",
+              "b": "{{4.start_at}}"
+            }
+          ],
+          [
+            {
+              "a": "{{11.meetingUrl}}",
+              "o": "text:notequal",
+              "b": "{{4.meeting_url}}"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 1200,
+          "y": 0,
+          "name": "Cancel only a cancelled or changed mapped occurrence"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "module": "app#meetstream:makeApiCall",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "url": "/api/v1/bots/{{encodeURL(4.bot_id)}}/stop_status",
+        "method": "GET",
+        "qs": [],
+        "headers": []
+      },
+      "metadata": {
+        "designer": {
+          "x": 1800,
+          "y": 0,
+          "name": "Confirm the stop request before continuing"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 2100,
+          "y": 0,
+          "name": "Do not mark a pending stop as a completed cancellation"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 6,
+              "module": "datastore:AddRecord",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "key": "{{sha256(2.calendarId + \":\" + 1.id)}}",
+                "overwrite": true,
+                "data": {
+                  "bot_id": "{{4.bot_id}}",
+                  "calendar_id": "{{4.calendar_id}}",
+                  "event_id": "{{4.event_id}}",
+                  "start_at": "{{4.start_at}}",
+                  "meeting_url": "{{4.meeting_url}}",
+                  "status": "cancelled"
+                }
+              },
+              "filter": {
+                "name": "Stop confirmed",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{7.body.status}}",
+                      "o": "text:pattern",
+                      "b": "^stopped$|^force_stopped$|^cancelled$"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0,
+                  "name": "Keep mapping and cancellation state for safe reactivation"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 9,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Cancellation is not confirmed. Check the stop request, then replay the cancellation event."
+              },
+              "filter": {
+                "name": "Pending or failed stop",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{7.body.status}}",
+                      "o": "text:notpattern",
+                      "b": "^stopped$|^force_stopped$|^cancelled$"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 2400,
+                  "y": 0,
+                  "name": "Cancellation is not confirmed. Check the stop request, then replay the cancellation event."
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

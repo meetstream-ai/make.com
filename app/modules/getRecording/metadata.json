@@ -1,0 +1,7 @@
+{
+  "name": "getRecording",
+  "typeId": 4,
+  "label": "Get a Recording",
+  "description": "Retrieves video metadata and a fresh download URL valid for one hour.",
+  "connection": "apiKey"
+}

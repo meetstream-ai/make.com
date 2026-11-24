@@ -1,0 +1,42 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "status",
+    "label": "Status",
+    "type": "text"
+  },
+  {
+    "name": "meeting_url",
+    "label": "Meeting URL",
+    "type": "text"
+  },
+  {
+    "name": "platform",
+    "label": "Platform",
+    "type": "text"
+  },
+  {
+    "name": "transcript_id",
+    "label": "Transcript ID",
+    "type": "text"
+  },
+  {
+    "name": "created_at",
+    "label": "Created At",
+    "type": "date"
+  },
+  {
+    "name": "updated_at",
+    "label": "Updated At",
+    "type": "date"
+  },
+  {
+    "name": "details",
+    "label": "Bot Details",
+    "type": "collection"
+  }
+]

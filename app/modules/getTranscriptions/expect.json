@@ -1,0 +1,24 @@
+[
+  {
+    "name": "botId",
+    "label": "Bot ID",
+    "type": "text",
+    "required": true,
+    "validate": {
+      "min": 1,
+      "max": 256,
+      "pattern": "^(?!\\.{1,2}$)(?=[^\\r\\n]*\\S)[^\\r\\n]+$(?![\\s\\S])"
+    }
+  },
+  {
+    "name": "limit",
+    "label": "Limit",
+    "type": "uinteger",
+    "required": true,
+    "default": 10,
+    "validate": {
+      "min": 1,
+      "max": 100
+    }
+  }
+]

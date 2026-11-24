@@ -1,0 +1,402 @@
+{
+  "name": "Latest successful transcript → existing HubSpot contact",
+  "flow": [
+    {
+      "id": 1,
+      "module": "app#meetstream:watchMeetingEvents",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Verified transcript events — configure relay first"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "app#meetstream:getBot",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "botId": "{{1.bot_id}}"
+      },
+      "filter": {
+        "name": "Enable after synthetic testing",
+        "conditions": [
+          [
+            {
+              "a": "false",
+              "o": "text:equal",
+              "b": "true"
+            },
+            {
+              "a": "{{1.bot_event}}",
+              "o": "text:equal",
+              "b": "transcription.processed"
+            },
+            {
+              "a": "{{1.payload.transcript_status}}",
+              "o": "text:equal",
+              "b": "Success"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Get meeting context and contact metadata"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "app#meetstream:getLatestTranscription",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "botId": "{{1.bot_id}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Select latest successful post-call transcript"
+        }
+      }
+    },
+    {
+      "id": 19,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 5400,
+          "y": 0,
+          "name": "Require contact metadata before any CRM request"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 21,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Set custom_attributes.hubspot_contact_id when creating the bot before enabling this CRM scenario."
+              },
+              "filter": {
+                "name": "Missing contact ID",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{ifempty(1.custom_attributes.hubspot_contact_id; 2.details.custom_attributes.hubspot_contact_id)}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 6000,
+                  "y": 0,
+                  "name": "Set custom_attributes.hubspot_contact_id when creating the bot before enabling this CRM scenario."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "hubspotcrm:MakeAPICall",
+              "version": 2,
+              "parameters": {},
+              "mapper": {
+                "url": "/crm/v3/objects/contacts/{{encodeURL(ifempty(1.custom_attributes.hubspot_contact_id; 2.details.custom_attributes.hubspot_contact_id))}}",
+                "method": "GET",
+                "qs": [
+                  {
+                    "key": "properties",
+                    "value": "meetstream_transcript_id,meetstream_meeting_started_at"
+                  }
+                ],
+                "headers": []
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 0,
+                  "name": "Read existing contact and deduplication marker"
+                }
+              },
+              "filter": {
+                "name": "Configured contact",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{ifempty(1.custom_attributes.hubspot_contact_id; 2.details.custom_attributes.hubspot_contact_id)}}",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "id": 5,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "parameters": {},
+              "mapper": {},
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 0,
+                  "name": "Do not overwrite a newer meeting or repeat the same transcript"
+                }
+              },
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 6,
+                      "module": "app#meetstream:getTranscript",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "transcriptId": "{{3.transcript_id}}",
+                        "raw": false
+                      },
+                      "filter": {
+                        "name": "New, non-older transcript",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{4.body.properties.meetstream_transcript_id}}",
+                              "o": "text:notequal",
+                              "b": "{{3.transcript_id}}"
+                            },
+                            {
+                              "a": "{{formatDate(parseDate(ifempty(4.body.properties.meetstream_meeting_started_at; \"1970-01-01T00:00:00Z\"); if(length(split(ifempty(4.body.properties.meetstream_meeting_started_at; \"1970-01-01T00:00:00Z\"); \".\")) > 1; \"YYYY-MM-DDTHH:mm:ss.SSSZ\"; \"YYYY-MM-DDTHH:mm:ssZ\")); \"x\")}}",
+                              "o": "number:lessorequal",
+                              "b": "{{formatDate(parseDate(ifempty(2.details.StartTime; 2.created_at); if(length(split(ifempty(2.details.StartTime; 2.created_at); \".\")) > 1; \"YYYY-MM-DDTHH:mm:ss.SSSZ\"; \"YYYY-MM-DDTHH:mm:ssZ\")); \"x\")}}"
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 1500,
+                          "y": 0,
+                          "name": "Retrieve the selected final transcript"
+                        }
+                      }
+                    },
+                    {
+                      "id": 7,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {},
+                      "metadata": {
+                        "designer": {
+                          "x": 1800,
+                          "y": 0,
+                          "name": "Treat empty speech as an actionable error"
+                        }
+                      },
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 23,
+                              "module": "builtin:ThrowError",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "message": "Transcript word values have unsupported types. Inspect the preserved segments and raw JSON before writing to CRM."
+                              },
+                              "filter": {
+                                "name": "Incomplete formatted text",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{6.text_incomplete}}",
+                                      "o": "boolean:equal",
+                                      "b": true
+                                    }
+                                  ]
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6600,
+                                  "y": 0,
+                                  "name": "Transcript word values have unsupported types. Inspect the preserved segments and raw JSON before writing to CRM."
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 20,
+                              "module": "builtin:ThrowError",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "message": "The selected transcript contains no speech. Inspect the transcription job before retrying."
+                              },
+                              "filter": {
+                                "name": "Empty transcript",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(trim(6.text))}}",
+                                      "o": "number:equal",
+                                      "b": 0
+                                    }
+                                  ]
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 5700,
+                                  "y": 0,
+                                  "name": "The selected transcript contains no speech. Inspect the transcription job before retrying."
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 8,
+                              "module": "util:SetVariables",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "variables": [
+                                  {
+                                    "name": "text",
+                                    "value": "{{if(length(6.text) > 15000; substring(6.text; 0; 14800) + decodeURL(\"%0A%0A\") + \"[Transcript truncated. Fetch the complete transcript by its saved ID.]\"; 6.text)}}"
+                                  }
+                                ],
+                                "scope": "roundtrip"
+                              },
+                              "filter": {
+                                "name": "Speech exists",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{length(trim(6.text))}}",
+                                      "o": "number:greater",
+                                      "b": 0
+                                    },
+                                    {
+                                      "a": "{{6.text_incomplete}}",
+                                      "o": "boolean:equal",
+                                      "b": false
+                                    }
+                                  ]
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 2100,
+                                  "y": 0,
+                                  "name": "Bound CRM text and explicitly mark truncation"
+                                }
+                              }
+                            },
+                            {
+                              "id": 22,
+                              "module": "json:CreateJSON",
+                              "version": 1,
+                              "parameters": {
+                                "space": ""
+                              },
+                              "mapper": {
+                                "properties": {
+                                  "meetstream_transcript_id": "{{3.transcript_id}}",
+                                  "meetstream_bot_id": "{{1.bot_id}}",
+                                  "meetstream_meeting_started_at": "{{ifempty(2.details.StartTime; 2.created_at)}}",
+                                  "meetstream_transcript": "{{8.text}}"
+                                }
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 6300,
+                                  "y": 0,
+                                  "name": "Encode HubSpot properties — choose the supplied JSON structure"
+                                }
+                              }
+                            },
+                            {
+                              "id": 9,
+                              "module": "hubspotcrm:MakeAPICall",
+                              "version": 2,
+                              "parameters": {},
+                              "mapper": {
+                                "url": "/crm/v3/objects/contacts/{{encodeURL(ifempty(1.custom_attributes.hubspot_contact_id; 2.details.custom_attributes.hubspot_contact_id))}}",
+                                "method": "PATCH",
+                                "qs": [],
+                                "headers": [
+                                  {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                  }
+                                ],
+                                "body": "{{22.json}}"
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 2400,
+                                  "y": 0,
+                                  "name": "Update the existing contact using stable IDs"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

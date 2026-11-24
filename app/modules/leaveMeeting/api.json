@@ -1,0 +1,17 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/remove_bot",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "output": {
+      "bot_id": "{{body.bot_id}}",
+      "status": "{{body.status}}",
+      "bot_status": "{{body.bot_status}}",
+      "control_request_id": "{{body.control_request_id}}",
+      "requested_at": "{{if(body.requested_at, parseDate(body.requested_at, 'X'), null)}}",
+      "acknowledged_at": "{{if(body.acknowledged_at, parseDate(body.acknowledged_at, 'X'), null)}}",
+      "completed_at": "{{if(body.completed_at, parseDate(body.completed_at, 'X'), null)}}",
+      "reason": "{{body.reason}}"
+    }
+  }
+}

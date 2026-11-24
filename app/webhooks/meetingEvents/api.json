@@ -1,0 +1,32 @@
+{
+  "verification": {
+    "condition": "{{if(method == 'POST' && body.delivery_id && body.payload && body.signature == sha256(body.delivery_id + ':' + body.issued_at + ':' + body.payload, 'hex', parameters.relaySecret) && parseDate(body.issued_at, 'X') >= addSeconds(now, -300) && parseDate(body.issued_at, 'X') <= addSeconds(now, 300), false, true)}}",
+    "respond": {
+      "status": 401,
+      "type": "json",
+      "body": {
+        "received": false
+      }
+    }
+  },
+  "respond": {
+    "status": 202,
+    "type": "json",
+    "body": {
+      "received": true
+    }
+  },
+  "output": {
+    "delivery_id": "{{body.delivery_id}}",
+    "bot_id": "{{toString(get(parseJSON(body.payload), 'bot_id'))}}",
+    "bot_event": "{{ifempty(get(parseJSON(body.payload), 'bot_event'), get(parseJSON(body.payload), 'event'))}}",
+    "event": "{{get(parseJSON(body.payload), 'event')}}",
+    "bot_status": "{{get(parseJSON(body.payload), 'bot_status')}}",
+    "status_code": "{{get(parseJSON(body.payload), 'status_code')}}",
+    "message": "{{get(parseJSON(body.payload), 'message')}}",
+    "timestamp": "{{if(get(parseJSON(body.payload), 'timestamp'), parseDate(get(parseJSON(body.payload), 'timestamp'), 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+    "transcript_id": "{{get(parseJSON(body.payload), 'transcript_id')}}",
+    "custom_attributes": "{{get(parseJSON(body.payload), 'custom_attributes')}}",
+    "payload": "{{parseJSON(body.payload)}}"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/detail",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "output": {
+      "bot_id": "{{body.bot_details.BotID}}",
+      "status": "{{body.bot_details.Status}}",
+      "meeting_url": "{{body.bot_details.MeetingLink}}",
+      "platform": "{{body.bot_details.Platform}}",
+      "transcript_id": "{{body.bot_details.transcript_id}}",
+      "created_at": "{{if(body.bot_details.CreatedAt, parseDate(body.bot_details.CreatedAt, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+      "updated_at": "{{if(body.bot_details.LastUpdatedAt, parseDate(body.bot_details.LastUpdatedAt, 'X'), null)}}",
+      "details": "{{body.bot_details}}"
+    }
+  }
+}

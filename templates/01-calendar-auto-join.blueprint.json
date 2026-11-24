@@ -1,0 +1,718 @@
+{
+  "name": "Calendar events → one MeetStream bot per revision",
+  "flow": [
+    {
+      "id": 1,
+      "module": "util:SetVariables",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "variables": [
+          {
+            "name": "enabled",
+            "value": "false"
+          },
+          {
+            "name": "calendarId",
+            "value": "primary"
+          },
+          {
+            "name": "leadMinutes",
+            "value": "20"
+          },
+          {
+            "name": "meetingLinkPattern",
+            "value": "/^[\\s\\S]*?(?:^|[\\s>\"'(])(https:\\/\\/(?:meet\\.google\\.com|(?:[A-Za-z0-9-]+\\.)*zoom\\.us|teams\\.(?:microsoft|live)\\.com)\\/[^\\s<>\"')]+)[\\s\\S]*$/i"
+          }
+        ],
+        "scope": "roundtrip"
+      },
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Setup — enabled=false, choose calendar and shared state store"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "google-calendar:makeApiCall",
+      "version": 5,
+      "parameters": {},
+      "mapper": {
+        "url": "/v3/calendars/{{encodeURL(1.calendarId)}}/events",
+        "method": "GET",
+        "qs": [
+          {
+            "key": "timeMin",
+            "value": "{{formatDate(now; \"YYYY-MM-DDTHH:mm:ss[Z]\"; \"UTC\")}}"
+          },
+          {
+            "key": "timeMax",
+            "value": "{{formatDate(addMinutes(now; 1.leadMinutes); \"YYYY-MM-DDTHH:mm:ss[Z]\"; \"UTC\")}}"
+          },
+          {
+            "key": "singleEvents",
+            "value": "true"
+          },
+          {
+            "key": "showDeleted",
+            "value": "true"
+          },
+          {
+            "key": "orderBy",
+            "value": "startTime"
+          },
+          {
+            "key": "maxResults",
+            "value": "2500"
+          },
+          {
+            "key": "q",
+            "value": "[MeetStream]"
+          }
+        ],
+        "headers": []
+      },
+      "filter": {
+        "name": "Enable on test connections after setup",
+        "conditions": [
+          [
+            {
+              "a": "{{1.enabled}}",
+              "o": "text:equal",
+              "b": "true"
+            }
+          ]
+        ]
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Scan tagged events in the lead-time window"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 600,
+          "y": 0,
+          "name": "Fail visibly if the scan exceeds one bounded page"
+        }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 30,
+              "module": "builtin:ThrowError",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "message": "Calendar scan overflow: narrow the lead window or implement pagination before enabling this calendar."
+              },
+              "filter": {
+                "name": "Incomplete page",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{2.body.nextPageToken}}",
+                      "o": "exist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 8700,
+                  "y": 0,
+                  "name": "Calendar scan overflow: narrow the lead window or implement pagination before enabling this calendar."
+                }
+              }
+            }
+          ]
+        },
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "builtin:BasicFeeder",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "array": "{{2.body.items}}"
+              },
+              "filter": {
+                "name": "Complete page",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{2.body.nextPageToken}}",
+                      "o": "notexist"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 900,
+                  "y": 0,
+                  "name": "Each calendar occurrence"
+                }
+              }
+            },
+            {
+              "id": 5,
+              "module": "google-calendar:makeApiCall",
+              "version": 5,
+              "parameters": {},
+              "mapper": {
+                "url": "/v3/calendars/{{encodeURL(1.calendarId)}}/events/{{encodeURL(4.id)}}",
+                "method": "GET",
+                "qs": [],
+                "headers": []
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1200,
+                  "y": 0,
+                  "name": "Recheck latest event before scheduling"
+                }
+              }
+            },
+            {
+              "id": 6,
+              "module": "util:SetVariables",
+              "version": 1,
+              "parameters": {},
+              "mapper": {
+                "variables": [
+                  {
+                    "name": "meetingUrl",
+                    "value": "{{replace(ifempty(5.body.hangoutLink; \"\") + \" \" + join(map(remove(5.body.conferenceData.entryPoints; null); \"uri\"; \"entryPointType\"; \"video\"); \" \") + \" \" + ifempty(5.body.location; \"\") + \" \" + ifempty(5.body.description; \"\"); 1.meetingLinkPattern; \"$1\")}}"
+                  },
+                  {
+                    "name": "key",
+                    "value": "{{sha256(1.calendarId + \":\" + 5.body.id)}}"
+                  },
+                  {
+                    "name": "startAt",
+                    "value": "{{5.body.start.dateTime}}"
+                  }
+                ],
+                "scope": "roundtrip"
+              },
+              "filter": {
+                "name": "Only future timed events",
+                "conditions": [
+                  [
+                    {
+                      "a": "{{5.body.status}}",
+                      "o": "text:notequal",
+                      "b": "cancelled"
+                    },
+                    {
+                      "a": "{{5.body.start.dateTime}}",
+                      "o": "exist"
+                    },
+                    {
+                      "a": "{{parseDate(5.body.start.dateTime; \"YYYY-MM-DDTHH:mm:ssZ\")}}",
+                      "o": "date:after",
+                      "b": "{{now}}"
+                    }
+                  ]
+                ]
+              },
+              "metadata": {
+                "designer": {
+                  "x": 1500,
+                  "y": 0,
+                  "name": "Resolve a supported link and occurrence identity"
+                }
+              }
+            },
+            {
+              "id": 7,
+              "module": "builtin:BasicRouter",
+              "version": 1,
+              "parameters": {},
+              "mapper": {},
+              "metadata": {
+                "designer": {
+                  "x": 1800,
+                  "y": 0,
+                  "name": "Missing or unsupported links require correction"
+                }
+              },
+              "routes": [
+                {
+                  "flow": [
+                    {
+                      "id": 31,
+                      "module": "builtin:ThrowError",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "message": "Tagged calendar event has no supported HTTPS meeting URL. Add a Google Meet, Zoom, or Teams link."
+                      },
+                      "filter": {
+                        "name": "Invalid meeting link",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{6.meetingUrl}}",
+                              "o": "text:notpattern",
+                              "b": "^[hH][tT][tT][pP][sS]://(?:[mM][eE][eE][tT]\\.[gG][oO][oO][gG][lL][eE]\\.[cC][oO][mM]|(?:[A-Za-z0-9-]+\\.)*[zZ][oO][oO][mM]\\.[uU][sS]|[tT][eE][aA][mM][sS]\\.[mM][iI][cC][rR][oO][sS][oO][fF][tT]\\.[cC][oO][mM]|[tT][eE][aA][mM][sS]\\.[lL][iI][vV][eE]\\.[cC][oO][mM])/[^\\s]+$"
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 9000,
+                          "y": 0,
+                          "name": "Tagged calendar event has no supported HTTPS meeting URL. Add a Google Meet, Zoom, or Teams link."
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "flow": [
+                    {
+                      "id": 8,
+                      "module": "datastore:ExistRecord",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {
+                        "key": "{{6.key}}"
+                      },
+                      "filter": {
+                        "name": "Supported link",
+                        "conditions": [
+                          [
+                            {
+                              "a": "{{6.meetingUrl}}",
+                              "o": "text:pattern",
+                              "b": "^[hH][tT][tT][pP][sS]://(?:[mM][eE][eE][tT]\\.[gG][oO][oO][gG][lL][eE]\\.[cC][oO][mM]|(?:[A-Za-z0-9-]+\\.)*[zZ][oO][oO][mM]\\.[uU][sS]|[tT][eE][aA][mM][sS]\\.[mM][iI][cC][rR][oO][sS][oO][fF][tT]\\.[cC][oO][mM]|[tT][eE][aA][mM][sS]\\.[lL][iI][vV][eE]\\.[cC][oO][mM])/[^\\s]+$"
+                            }
+                          ]
+                        ]
+                      },
+                      "metadata": {
+                        "designer": {
+                          "x": 2100,
+                          "y": 0,
+                          "name": "Look up the persistent occurrence record"
+                        }
+                      }
+                    },
+                    {
+                      "id": 9,
+                      "module": "builtin:BasicRouter",
+                      "version": 1,
+                      "parameters": {},
+                      "mapper": {},
+                      "metadata": {
+                        "designer": {
+                          "x": 2400,
+                          "y": 0,
+                          "name": "New occurrence or saved schedule"
+                        }
+                      },
+                      "routes": [
+                        {
+                          "flow": [
+                            {
+                              "id": 10,
+                              "module": "app#meetstream:createBot",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "meetingLink": "{{6.meetingUrl}}",
+                                "botName": "MeetStream Notetaker",
+                                "deduplicationKey": "{{sha256(6.key + \":\" + \"initial\" + \":\" + 6.startAt + \":\" + 6.meetingUrl)}}",
+                                "joinAt": "{{6.startAt}}",
+                                "videoRequired": true,
+                                "transcriptionMode": "postCall",
+                                "postCallProvider": "meetstream",
+                                "providerOptions": "{}"
+                              },
+                              "filter": {
+                                "name": "New occurrence",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{8.exist}}",
+                                      "o": "boolean:equal",
+                                      "b": false
+                                    }
+                                  ]
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 2700,
+                                  "y": 0,
+                                  "name": "Create or replay this calendar revision"
+                                }
+                              }
+                            },
+                            {
+                              "id": 11,
+                              "module": "datastore:AddRecord",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "key": "{{6.key}}",
+                                "overwrite": true,
+                                "data": {
+                                  "bot_id": "{{10.bot_id}}",
+                                  "calendar_id": "{{1.calendarId}}",
+                                  "event_id": "{{5.body.id}}",
+                                  "start_at": "{{6.startAt}}",
+                                  "meeting_url": "{{6.meetingUrl}}",
+                                  "status": "scheduled"
+                                }
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3000,
+                                  "y": 0,
+                                  "name": "Persist event → bot mapping independently of event metadata"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "flow": [
+                            {
+                              "id": 12,
+                              "module": "datastore:GetRecord",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {
+                                "key": "{{6.key}}",
+                                "returnWrapped": false
+                              },
+                              "filter": {
+                                "name": "Existing occurrence",
+                                "conditions": [
+                                  [
+                                    {
+                                      "a": "{{8.exist}}",
+                                      "o": "boolean:equal",
+                                      "b": true
+                                    }
+                                  ]
+                                ]
+                              },
+                              "metadata": {
+                                "designer": {
+                                  "x": 3300,
+                                  "y": 0,
+                                  "name": "Read persisted bot and revision"
+                                }
+                              }
+                            },
+                            {
+                              "id": 13,
+                              "module": "builtin:BasicRouter",
+                              "version": 1,
+                              "parameters": {},
+                              "mapper": {},
+                              "metadata": {
+                                "designer": {
+                                  "x": 3600,
+                                  "y": 0,
+                                  "name": "Replace only changed or cancelled schedules"
+                                }
+                              },
+                              "routes": [
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 14,
+                                      "module": "app#meetstream:createBot",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "meetingLink": "{{6.meetingUrl}}",
+                                        "botName": "MeetStream Notetaker",
+                                        "deduplicationKey": "{{sha256(6.key + \":\" + 12.bot_id + \":\" + 6.startAt + \":\" + 6.meetingUrl)}}",
+                                        "joinAt": "{{6.startAt}}",
+                                        "videoRequired": true,
+                                        "transcriptionMode": "postCall",
+                                        "postCallProvider": "meetstream",
+                                        "providerOptions": "{}"
+                                      },
+                                      "filter": {
+                                        "name": "Reactivate a cancelled event",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{12.status}}",
+                                              "o": "text:equal",
+                                              "b": "cancelled"
+                                            }
+                                          ]
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 3900,
+                                          "y": 0,
+                                          "name": "Create or replay this calendar revision"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 15,
+                                      "module": "datastore:AddRecord",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "key": "{{6.key}}",
+                                        "overwrite": true,
+                                        "data": {
+                                          "bot_id": "{{14.bot_id}}",
+                                          "calendar_id": "{{1.calendarId}}",
+                                          "event_id": "{{5.body.id}}",
+                                          "start_at": "{{6.startAt}}",
+                                          "meeting_url": "{{6.meetingUrl}}",
+                                          "status": "scheduled"
+                                        }
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4200,
+                                          "y": 0,
+                                          "name": "Persist event → bot mapping independently of event metadata"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "flow": [
+                                    {
+                                      "id": 16,
+                                      "module": "app#meetstream:leaveMeeting",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "botId": "{{12.bot_id}}"
+                                      },
+                                      "filter": {
+                                        "name": "Active saved schedule changed",
+                                        "conditions": [
+                                          [
+                                            {
+                                              "a": "{{12.status}}",
+                                              "o": "text:notequal",
+                                              "b": "cancelled"
+                                            },
+                                            {
+                                              "a": "{{6.startAt}}",
+                                              "o": "text:notequal",
+                                              "b": "{{12.start_at}}"
+                                            }
+                                          ],
+                                          [
+                                            {
+                                              "a": "{{12.status}}",
+                                              "o": "text:notequal",
+                                              "b": "cancelled"
+                                            },
+                                            {
+                                              "a": "{{6.meetingUrl}}",
+                                              "o": "text:notequal",
+                                              "b": "{{12.meeting_url}}"
+                                            }
+                                          ]
+                                        ]
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 4500,
+                                          "y": 0,
+                                          "name": "Cancel old bot before replacement"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 40,
+                                      "module": "app#meetstream:makeApiCall",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {
+                                        "url": "/api/v1/bots/{{encodeURL(12.bot_id)}}/stop_status",
+                                        "method": "GET",
+                                        "qs": [],
+                                        "headers": []
+                                      },
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 11700,
+                                          "y": 0,
+                                          "name": "Confirm the stop request before continuing"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": 41,
+                                      "module": "builtin:BasicRouter",
+                                      "version": 1,
+                                      "parameters": {},
+                                      "mapper": {},
+                                      "metadata": {
+                                        "designer": {
+                                          "x": 12000,
+                                          "y": 0,
+                                          "name": "Only replace after the old bot has stopped"
+                                        }
+                                      },
+                                      "routes": [
+                                        {
+                                          "flow": [
+                                            {
+                                              "id": 17,
+                                              "module": "app#meetstream:createBot",
+                                              "version": 1,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "meetingLink": "{{6.meetingUrl}}",
+                                                "botName": "MeetStream Notetaker",
+                                                "deduplicationKey": "{{sha256(6.key + \":\" + 12.bot_id + \":\" + 6.startAt + \":\" + 6.meetingUrl)}}",
+                                                "joinAt": "{{6.startAt}}",
+                                                "videoRequired": true,
+                                                "transcriptionMode": "postCall",
+                                                "postCallProvider": "meetstream",
+                                                "providerOptions": "{}"
+                                              },
+                                              "filter": {
+                                                "name": "Stop confirmed",
+                                                "conditions": [
+                                                  [
+                                                    {
+                                                      "a": "{{40.body.status}}",
+                                                      "o": "text:pattern",
+                                                      "b": "^stopped$|^force_stopped$|^cancelled$"
+                                                    }
+                                                  ]
+                                                ]
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 4800,
+                                                  "y": 0,
+                                                  "name": "Create or replay this calendar revision"
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "id": 18,
+                                              "module": "datastore:AddRecord",
+                                              "version": 1,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "key": "{{6.key}}",
+                                                "overwrite": true,
+                                                "data": {
+                                                  "bot_id": "{{17.bot_id}}",
+                                                  "calendar_id": "{{1.calendarId}}",
+                                                  "event_id": "{{5.body.id}}",
+                                                  "start_at": "{{6.startAt}}",
+                                                  "meeting_url": "{{6.meetingUrl}}",
+                                                  "status": "scheduled"
+                                                }
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 5100,
+                                                  "y": 0,
+                                                  "name": "Persist event → bot mapping independently of event metadata"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "flow": [
+                                            {
+                                              "id": 42,
+                                              "module": "builtin:ThrowError",
+                                              "version": 1,
+                                              "parameters": {},
+                                              "mapper": {
+                                                "message": "Old bot stop is not confirmed. Inspect stop status, then replay the calendar occurrence; do not create a replacement yet."
+                                              },
+                                              "filter": {
+                                                "name": "Pending or failed stop",
+                                                "conditions": [
+                                                  [
+                                                    {
+                                                      "a": "{{40.body.status}}",
+                                                      "o": "text:notpattern",
+                                                      "b": "^stopped$|^force_stopped$|^cancelled$"
+                                                    }
+                                                  ]
+                                                ]
+                                              },
+                                              "metadata": {
+                                                "designer": {
+                                                  "x": 12300,
+                                                  "y": 0,
+                                                  "name": "Old bot stop is not confirmed. Inspect stop status, then replay the calendar occurrence; do not create a replacement yet."
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": true,
+      "confidential": true,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    }
+  }
+}

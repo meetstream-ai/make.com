@@ -1,0 +1,54 @@
+[
+  {
+    "name": "bot_id",
+    "label": "Bot ID",
+    "type": "text"
+  },
+  {
+    "name": "video_url",
+    "label": "Video Download URL",
+    "type": "text"
+  },
+  {
+    "name": "video_info",
+    "label": "Video Information",
+    "type": "collection",
+    "spec": [
+      {
+        "name": "duration",
+        "label": "Duration (seconds)",
+        "type": "number"
+      },
+      {
+        "name": "size_mb",
+        "label": "Size (MB)",
+        "type": "number"
+      },
+      {
+        "name": "resolution",
+        "label": "Resolution",
+        "type": "text"
+      },
+      {
+        "name": "fps",
+        "label": "FPS",
+        "type": "number"
+      },
+      {
+        "name": "frames_processed",
+        "label": "Frames Processed",
+        "type": "integer"
+      },
+      {
+        "name": "corrupted_frames",
+        "label": "Corrupted Frames",
+        "type": "integer"
+      }
+    ]
+  },
+  {
+    "name": "fetched_at",
+    "label": "Fetched At",
+    "type": "date"
+  }
+]

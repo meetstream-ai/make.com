@@ -1,0 +1,35 @@
+{
+  "name": "MeetStream Make-generated summaries",
+  "spec": [
+    {
+      "name": "bot_id",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "transcript_id",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "summary",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "summary_source",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "summary_policy",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "generated_at",
+      "type": "text",
+      "required": false
+    }
+  ]
+}

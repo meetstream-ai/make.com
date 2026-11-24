@@ -1,0 +1,10 @@
+[
+  {
+    "name": "apiKey",
+    "type": "password",
+    "label": "API Key",
+    "required": true,
+    "help": "Create an API key at https://app.meetstream.ai/api-key. Paste only the key; MeetStream adds the Token prefix.",
+    "validate": { "min": 1, "max": 4096, "pattern": "^[^\\s\\r\\n]+$(?![\\s\\S])" }
+  }
+]

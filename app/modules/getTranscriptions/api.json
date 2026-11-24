@@ -1,0 +1,18 @@
+{
+  "url": "/api/v1/bots/{{encodeURL(parameters.botId)}}/transcriptions",
+  "encodeUrl": false,
+  "method": "GET",
+  "response": {
+    "limit": "{{parameters.limit}}",
+    "iterate": "{{body.transcriptions}}",
+    "output": {
+      "bot_id": "{{parameters.botId}}",
+      "transcript_id": "{{item.transcript_id}}",
+      "provider": "{{item.provider}}",
+      "status": "{{item.status}}",
+      "created_at": "{{if(item.created_at, parseDate(item.created_at, 'YYYY-MM-DDTHH:mm:ss.SSSZ'), null)}}",
+      "config": "{{item.config}}",
+      "download_urls": "{{item.download_urls}}"
+    }
+  }
+}

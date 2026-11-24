@@ -1,0 +1,7 @@
+{
+  "name": "getTranscriptions",
+  "typeId": 9,
+  "label": "List Transcriptions",
+  "description": "Lists transcription jobs and their transcript IDs for a bot.",
+  "connection": "apiKey"
+}
